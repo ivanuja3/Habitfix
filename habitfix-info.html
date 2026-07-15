@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>HabitFix — Guía completa</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #fff;
+  color: #111;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 0 60px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 18mm 16mm; }
+  body { max-width: 100%; padding: 0; font-size: 10pt; }
+  .no-break { page-break-inside: avoid; }
+  .page-break { page-break-before: always; }
+}
+
+/* ── PORTADA ── */
+.cover {
+  padding: 60px 48px 48px;
+  border-bottom: 3px solid #111;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.cover-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: #1a9e1a; margin-bottom: 16px;
+}
+.cover-title {
+  font-size: 56px; font-weight: 900; letter-spacing: -3px;
+  line-height: .95; color: #111; margin-bottom: 10px;
+}
+.cover-title span { color: #1a9e1a; }
+.cover-tagline {
+  font-size: 17px; color: #555; font-weight: 400; margin-bottom: 40px;
+}
+.cover-chips {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.cover-chip {
+  border: 1.5px solid #ddd; border-radius: 100px;
+  padding: 6px 16px; font-size: 12px; font-weight: 600; color: #555;
+}
+.cover-chip.green { border-color: #1a9e1a; color: #1a9e1a; background: #f0faf0; }
+
+/* ── INTRO ── */
+.intro {
+  padding: 40px 48px;
+  border-bottom: 1px solid #eee;
+}
+.intro p { font-size: 15px; color: #444; line-height: 1.75; max-width: 620px; }
+
+/* ── KPI STRIP ── */
+.kpi-strip {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid #eee;
+}
+.kpi-item {
+  padding: 28px 48px;
+  border-right: 1px solid #eee;
+}
+.kpi-item:last-child { border-right: none; }
+.kpi-num { font-size: 36px; font-weight: 900; color: #1a9e1a; letter-spacing: -2px; line-height: 1; }
+.kpi-lbl { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+
+/* ── SECTION HEADER ── */
+.sec-head {
+  padding: 40px 48px 24px;
+}
+.sec-eyebrow {
+  font-size: 9px; font-weight: 700; letter-spacing: 2.5px;
+  text-transform: uppercase; color: #1a9e1a; margin-bottom: 8px;
+}
+.sec-title {
+  font-size: 26px; font-weight: 800; letter-spacing: -1px; color: #111;
+}
+.sec-sub { font-size: 14px; color: #666; margin-top: 4px; }
+
+/* ── FEATURES GRID ── */
+.feat-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid #eee;
+  margin: 0 48px 40px;
+}
+.feat-cell {
+  padding: 20px 20px 20px 0;
+  border-right: 1px solid #eee;
+  padding-right: 20px;
+}
+.feat-cell:nth-child(3n) { border-right: none; padding-right: 0; }
+.feat-cell:nth-child(n+4) { border-top: 1px solid #eee; }
+.feat-cell:nth-child(3n+2), .feat-cell:nth-child(3n+3) { padding-left: 20px; }
+.feat-icon { font-size: 22px; margin-bottom: 8px; }
+.feat-name { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 4px; }
+.feat-desc { font-size: 12px; color: #666; line-height: 1.55; }
+
+/* ── DIVIDER LINE ── */
+.divline { height: 1px; background: #eee; margin: 0 48px; }
+
+/* ── SCREENS SECTION ── */
+.screens-section { padding: 40px 48px; border-bottom: 1px solid #eee; }
+
+.screens-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  margin-top: 24px;
+}
+
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+.phone {
+  width: 100%;
+  border: 2px solid #222;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #f8f8f8;
+}
+.phone-bar {
+  background: #111; height: 6px; width: 30px;
+  border-radius: 3px; margin: 10px auto 0;
+}
+.phone-inner { padding: 8px 8px 10px; }
+.phone-lbl {
+  font-size: 10.5px; font-weight: 700; color: #444; text-align: center;
+}
+
+/* phone content atoms */
+.p-title  { font-size: 8px; font-weight: 800; color: #111; margin-bottom: 1px; }
+.p-sub    { font-size: 5px; color: #888; margin-bottom: 8px; }
+.p-quote  { font-size: 5.5px; color: #1a9e1a; font-weight: 600; text-align: center; margin-bottom: 7px; line-height: 1.4; font-style: italic; }
+
+.p-chips  { display: flex; gap: 3px; justify-content: center; margin-bottom: 7px; }
+.p-chip   { border: 1px solid #ddd; border-radius: 6px; padding: 3px 5px; text-align: center; background: #fff; }
+.p-chip-n { font-size: 8px; font-weight: 800; color: #1a9e1a; line-height: 1; }
+.p-chip-l { font-size: 4px; color: #999; margin-top: 1px; }
+
+.p-card   { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 5px 7px; margin-bottom: 5px; }
+.p-card-lbl { font-size: 4.5px; color: #999; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+
+/* ring */
+.p-ring-row { display: flex; align-items: center; gap: 6px; }
+.p-ring-text-lbl { font-size: 5.5px; font-weight: 700; color: #111; }
+.p-ring-text-sub { font-size: 4.5px; color: #999; margin-top: 1px; }
+
+/* mood */
+.p-mood { display: flex; justify-content: space-between; align-items: center; }
+.p-mood span { font-size: 9px; }
+.p-mood span.active { transform: scale(1.25); filter: none; }
+.p-mood span:not(.active) { opacity: .3; }
+
+/* habits grid */
+.p-day-row { display: grid; grid-template-columns: 34px repeat(7,1fr) 16px; gap: 2px; align-items: center; }
+.p-day-hdr { display: grid; grid-template-columns: 34px repeat(7,1fr) 16px; gap: 2px; margin-bottom: 2px; }
+.p-day-hdr div { font-size: 4px; color: #999; text-align: center; font-weight: 700; }
+.p-day-hdr div.today { color: #1a9e1a; font-weight: 800; }
+.p-habit-row { background: #fff; border: 1px solid #e8e8e8; border-radius: 5px; padding: 2.5px; margin-bottom: 2px; }
+.p-habit-name { font-size: 4.5px; color: #333; font-weight: 600; overflow: hidden; white-space: nowrap; }
+.p-cell-on  { width: 10px; height: 10px; background: #1a9e1a; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #fff; }
+.p-cell-off { width: 10px; height: 10px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; }
+.p-streak   { background: #1a9e1a; color: #fff; font-size: 4px; font-weight: 800; padding: 1.5px 3px; border-radius: 4px; text-align: center; white-space: nowrap; }
+
+/* timer */
+.p-timer-wrap { display: flex; justify-content: center; margin-bottom: 8px; }
+.p-ctrl-row { display: flex; gap: 4px; justify-content: center; margin-bottom: 7px; }
+.p-btn { background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; padding: 3.5px 8px; font-size: 5px; color: #555; }
+.p-btn.primary { background: #1a9e1a; border-color: #1a9e1a; color: #fff; font-weight: 700; }
+.p-mode-row { display: flex; gap: 3px; justify-content: center; margin-bottom: 7px; }
+.p-mode  { background: #f0f0f0; border: 1px solid #ddd; border-radius: 5px; padding: 2px 6px; font-size: 4.5px; color: #666; font-weight: 700; }
+.p-mode.on { background: #f0faf0; border-color: #1a9e1a; color: #1a9e1a; }
+.p-sounds { display: grid; grid-template-columns: repeat(6,1fr); gap: 2px; }
+.p-sound { text-align: center; }
+.p-sound .ic { font-size: 9px; background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 4px; padding: 1.5px; display: block; }
+.p-sound .ic.on { background: #f0faf0; border-color: #1a9e1a; }
+.p-sound .sl { font-size: 4px; color: #999; margin-top: 1px; }
+.p-sound .sl.on { color: #1a9e1a; font-weight: 700; }
+
+/* ── DETAIL SECTIONS ── */
+.detail-block {
+  padding: 0 48px 32px;
+  border-bottom: 1px solid #eee;
+}
+.detail-block:last-of-type { border-bottom: none; }
+
+.detail-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 32px 0 18px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 16px;
+}
+.detail-ico {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #f0faf0; border: 1.5px solid #b6deb6;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+.detail-ttl { font-size: 17px; font-weight: 800; color: #111; letter-spacing: -.4px; }
+.detail-sub { font-size: 11px; color: #888; margin-top: 2px; }
+
+.feat-list { display: flex; flex-direction: column; gap: 7px; }
+.feat-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fafafa; border: 1px solid #eee; border-radius: 8px;
+  padding: 10px 12px;
+}
+.feat-dot { width: 6px; height: 6px; border-radius: 50%; background: #1a9e1a; margin-top: 6px; flex-shrink: 0; }
+.feat-txt { font-size: 13px; color: #333; line-height: 1.5; }
+.feat-txt strong { color: #111; font-weight: 700; }
+
+.pomo-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.pomo-tag {
+  border: 1.5px solid #ddd; border-radius: 100px;
+  padding: 5px 14px; font-size: 12px; font-weight: 700;
+  color: #555; font-family: monospace;
+}
+.pomo-tag.on { border-color: #1a9e1a; color: #1a9e1a; background: #f0faf0; }
+
+.sound-row {
+  display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin-top: 12px;
+}
+.sound-item {
+  border: 1px solid #eee; border-radius: 8px; padding: 8px 4px;
+  text-align: center; font-size: 11px; color: #888;
+  background: #fafafa;
+}
+.sound-item span { display: block; font-size: 18px; margin-bottom: 3px; }
+
+/* ── FOOTER ── */
+.footer-block {
+  margin: 40px 48px 0;
+  padding: 28px 32px;
+  background: #f0faf0;
+  border: 1.5px solid #b6deb6;
+  border-radius: 14px;
+  text-align: center;
+}
+.footer-ttl { font-size: 18px; font-weight: 800; color: #111; margin-bottom: 6px; letter-spacing: -.4px; }
+.footer-sub { font-size: 13px; color: #666; }
+.footer-badge {
+  display: inline-block; margin-top: 14px;
+  background: #1a9e1a; color: #fff;
+  font-weight: 800; font-size: 13px;
+  padding: 8px 24px; border-radius: 100px;
+}
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="cover no-break">
+  <div class="cover-eyebrow">Guía de producto · 2026</div>
+  <div class="cover-title">Habit<span>Fix</span></div>
+  <div class="cover-tagline">Cambia lo que hacés</div>
+  <div class="cover-chips">
+    <div class="cover-chip green">6 secciones</div>
+    <div class="cover-chip">Hábitos ilimitados</div>
+    <div class="cover-chip">Pomodoro integrado</div>
+    <div class="cover-chip">100% gratuito</div>
+  </div>
+</div>
+
+<!-- INTRO -->
+<div class="intro">
+  <p>HabitFix es una app diseñada para ayudarte a construir hábitos consistentes, organizarte la semana y enfocarte en lo que importa. No es otra app de notas ni un calendario complicado. Es un sistema simple que te acompaña todos los días.</p>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-strip no-break">
+  <div class="kpi-item">
+    <div class="kpi-num">6</div>
+    <div class="kpi-lbl">Secciones</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num">∞</div>
+    <div class="kpi-lbl">Hábitos personalizados</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num">🔥</div>
+    <div class="kpi-lbl">Racha diaria</div>
+  </div>
+</div>
+
+<!-- SECCIONES OVERVIEW -->
+<div class="sec-head">
+  <div class="sec-eyebrow">Secciones</div>
+  <div class="sec-title">Todo en un solo lugar</div>
+</div>
+<div class="feat-grid no-break">
+  <div class="feat-cell"><div class="feat-icon">🏠</div><div class="feat-name">Dashboard</div><div class="feat-desc">Resumen del día: hábitos, racha, estado de ánimo y progreso semanal.</div></div>
+  <div class="feat-cell"><div class="feat-icon">✅</div><div class="feat-name">Hábitos</div><div class="feat-desc">Tabla semanal con racha por hábito y gráfico de evolución.</div></div>
+  <div class="feat-cell"><div class="feat-icon">📋</div><div class="feat-name">Tareas</div><div class="feat-desc">Organizá tu semana día por día con lista de tareas simple.</div></div>
+  <div class="feat-cell"><div class="feat-icon">🎯</div><div class="feat-name">Metas</div><div class="feat-desc">Definí tus metas del mes y armá tus rutinas de mañana y noche.</div></div>
+  <div class="feat-cell"><div class="feat-icon">⏱️</div><div class="feat-name">Modo Focus</div><div class="feat-desc">Pomodoro + ambiente sonoro para concentrarte en lo que importa.</div></div>
+  <div class="feat-cell"><div class="feat-icon">📅</div><div class="feat-name">Calendario</div><div class="feat-desc">Vista mensual con notas por día y resumen de actividad.</div></div>
+</div>
+
+<!-- PANTALLAS -->
+<div class="screens-section no-break">
+  <div class="sec-eyebrow">Vista previa</div>
+  <div class="sec-title" style="margin-bottom:0;">Así se ve adentro</div>
+  <div class="screens-row">
+
+    <!-- Dashboard -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-bar"></div>
+        <div class="phone-inner">
+          <div class="p-quote">"Hoy es otro día para construir quién querés ser"</div>
+          <div class="p-chips">
+            <div class="p-chip"><div class="p-chip-n">4/5</div><div class="p-chip-l">hábitos</div></div>
+            <div class="p-chip"><div class="p-chip-n" style="color:#111;">2</div><div class="p-chip-l">tareas</div></div>
+            <div class="p-chip"><div class="p-chip-n" style="color:#111;">🔥7</div><div class="p-chip-l">racha</div></div>
+          </div>
+          <div class="p-card">
+            <div class="p-card-lbl">Estado de ánimo</div>
+            <div class="p-mood">
+              <span>😴</span><span>😐</span><span class="active">😊</span><span>🤩</span><span>🚀</span>
+            </div>
+          </div>
+          <div class="p-card">
+            <div class="p-card-lbl">Progreso semanal</div>
+            <div class="p-ring-row">
+              <svg width="36" height="36" viewBox="0 0 36 36" style="transform:rotate(-90deg);flex-shrink:0;">
+                <circle cx="18" cy="18" r="13" fill="none" stroke="#e8e8e8" stroke-width="4"/>
+                <circle cx="18" cy="18" r="13" fill="none" stroke="#1a9e1a" stroke-width="4" stroke-dasharray="65 82" stroke-linecap="round"/>
+              </svg>
+              <div>
+                <div class="p-ring-text-lbl">80% esta semana</div>
+                <div class="p-ring-text-sub">4 de 5 hábitos cumplidos</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+            <div class="p-card" style="margin-bottom:0;">
+              <div class="p-card-lbl">☀️ Mañana</div>
+              <div style="font-size:4.5px;color:#555;">✓ Meditar</div>
+              <div style="font-size:4.5px;color:#555;">✓ Ejercicio</div>
+              <div style="font-size:4.5px;color:#aaa;">○ Leer</div>
+            </div>
+            <div class="p-card" style="margin-bottom:0;">
+              <div class="p-card-lbl">🌙 Noche</div>
+              <div style="font-size:4.5px;color:#555;">✓ Sin pantallas</div>
+              <div style="font-size:4.5px;color:#aaa;">○ Journaling</div>
+              <div style="font-size:4.5px;color:#aaa;">○ Dormir 23h</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-lbl">Dashboard</div>
+    </div>
+
+    <!-- Hábitos -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-bar"></div>
+        <div class="phone-inner">
+          <div class="p-title">Mis Hábitos</div>
+          <div class="p-sub">14 al 20 de julio</div>
+          <div class="p-day-hdr">
+            <div></div>
+            <div>L</div><div>M</div><div>M</div><div>J</div><div class="today">V</div><div>S</div><div>D</div>
+            <div></div>
+          </div>
+          <div class="p-habit-row">
+            <div class="p-day-row">
+              <div class="p-habit-name">🏃 Correr</div>
+              <div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-off"></div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-off"></div><div class="p-cell-off"></div>
+              <div class="p-streak">🔥4</div>
+            </div>
+          </div>
+          <div class="p-habit-row">
+            <div class="p-day-row">
+              <div class="p-habit-name">📖 Leer</div>
+              <div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-off"></div><div class="p-cell-off"></div>
+              <div class="p-streak">🔥5</div>
+            </div>
+          </div>
+          <div class="p-habit-row">
+            <div class="p-day-row">
+              <div class="p-habit-name">🧘 Meditar</div>
+              <div class="p-cell-off"></div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-off"></div><div class="p-cell-off"></div>
+              <div class="p-streak">🔥4</div>
+            </div>
+          </div>
+          <div class="p-habit-row">
+            <div class="p-day-row">
+              <div class="p-habit-name">💧 Agua</div>
+              <div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-on">✓</div><div class="p-cell-off"></div><div class="p-cell-off"></div>
+              <div class="p-streak">🔥7</div>
+            </div>
+          </div>
+          <div class="p-card" style="margin-top:6px;">
+            <div class="p-card-lbl">Evolución semanal</div>
+            <svg viewBox="0 0 110 28" style="width:100%;height:auto;">
+              <defs>
+                <linearGradient id="cg2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#1a9e1a" stop-opacity=".2"/>
+                  <stop offset="100%" stop-color="#1a9e1a" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <polygon points="5,23 20,17 36,20 52,11 68,7 84,12 100,8 100,28 5,28" fill="url(#cg2)"/>
+              <polyline points="5,23 20,17 36,20 52,11 68,7 84,12 100,8" fill="none" stroke="#1a9e1a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="100" cy="8" r="2" fill="#1a9e1a"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="phone-lbl">Hábitos</div>
+    </div>
+
+    <!-- Focus -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-bar"></div>
+        <div class="phone-inner">
+          <div class="p-title">Modo Focus</div>
+          <div class="p-sub">Concentración profunda</div>
+          <div class="p-timer-wrap">
+            <div style="position:relative;width:78px;height:78px;">
+              <svg viewBox="0 0 78 78" style="width:78px;height:78px;transform:rotate(-90deg);">
+                <circle cx="39" cy="39" r="33" fill="none" stroke="#eee" stroke-width="5"/>
+                <circle cx="39" cy="39" r="33" fill="none" stroke="#1a9e1a" stroke-width="5" stroke-dasharray="124 207" stroke-linecap="round"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <div style="font-size:16px;font-weight:900;color:#111;letter-spacing:-1px;line-height:1;">24:35</div>
+                <div style="font-size:4.5px;color:#1a9e1a;font-weight:700;letter-spacing:.5px;margin-top:2px;">FOCUS</div>
+              </div>
+            </div>
+          </div>
+          <div class="p-ctrl-row">
+            <div class="p-btn">⏮</div>
+            <div class="p-btn primary">⏸ Pausar</div>
+            <div class="p-btn">⏭</div>
+          </div>
+          <div class="p-mode-row">
+            <div class="p-mode on">25/5</div>
+            <div class="p-mode">50/10</div>
+            <div class="p-mode">15/5</div>
+          </div>
+          <div class="p-card">
+            <div class="p-card-lbl">Tarea del día</div>
+            <div style="font-size:6px;color:#333;">Terminar presentación de ventas</div>
+          </div>
+          <div class="p-card" style="margin-bottom:0;">
+            <div class="p-card-lbl">Ambiente sonoro</div>
+            <div class="p-sounds">
+              <div class="p-sound"><span class="ic on">🌧️</span><div class="sl on">ON</div></div>
+              <div class="p-sound"><span class="ic">🔥</span><div class="sl">off</div></div>
+              <div class="p-sound"><span class="ic">☕</span><div class="sl">off</div></div>
+              <div class="p-sound"><span class="ic">🌿</span><div class="sl">off</div></div>
+              <div class="p-sound"><span class="ic">🌊</span><div class="sl">off</div></div>
+              <div class="p-sound"><span class="ic">🚀</span><div class="sl">off</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-lbl">Modo Focus</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DETALLE: DASHBOARD -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">🏠</div>
+    <div><div class="detail-ttl">Dashboard</div><div class="detail-sub">Tu resumen diario de un vistazo</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Frase motivacional diaria</strong> — cambia cada día para mantenerte enfocado.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>KPIs del día</strong> — hábitos completados, tareas pendientes y racha actual.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Tracker de estado de ánimo</strong> — registrás cómo te sentís hoy en 5 niveles.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Progreso semanal</strong> — anillo visual con el porcentaje de hábitos cumplidos esta semana.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Rutinas de mañana y noche</strong> — tus pasos fijos del día siempre a la vista.</div></div>
+  </div>
+</div>
+
+<!-- DETALLE: HÁBITOS -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">✅</div>
+    <div><div class="detail-ttl">Hábitos</div><div class="detail-sub">Seguimiento semanal con racha y evolución</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Tabla semanal (L–D)</strong> — tildás cada día que cumpliste el hábito.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Racha por hábito</strong> — cuántos días seguidos llevás sin fallar.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Hábitos ilimitados</strong> — agregás los que quieras con nombre personalizado.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Gráfico de evolución semanal</strong> — ves la consistencia de cada hábito en el tiempo.</div></div>
+  </div>
+</div>
+
+<!-- DETALLE: TAREAS -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">📋</div>
+    <div><div class="detail-ttl">Tareas</div><div class="detail-sub">Organizá tu semana día por día</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Vista por día</strong> — cada día de la semana tiene su propia lista.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Marcar completadas</strong> — tildás cada tarea cuando la terminás.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Limpiar completadas</strong> — limpieza rápida para empezar fresco.</div></div>
+  </div>
+</div>
+
+<!-- DETALLE: METAS -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">🎯</div>
+    <div><div class="detail-ttl">Metas del mes</div><div class="detail-sub">Definí hacia dónde vas este mes</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Metas principales</strong> — los objetivos más importantes del mes.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Nuevas experiencias</strong> — cosas que querés probar o hacer por primera vez.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Rutina de mañana</strong> — armás tus pasos fijos al empezar el día.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Rutina de noche</strong> — definís cómo cerrás cada día antes de dormir.</div></div>
+  </div>
+</div>
+
+<!-- DETALLE: FOCUS -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">⏱️</div>
+    <div><div class="detail-ttl">Modo Focus</div><div class="detail-sub">Pomodoro + ambiente sonoro</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Timer Pomodoro</strong> — técnica probada para trabajar en bloques de concentración con descansos.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Contador de sesiones</strong> — ve cuántos pomodoros completaste en el día.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Tarea del día</strong> — escribís en qué te vas a enfocar para no perder el rumbo.</div></div>
+  </div>
+  <div style="margin-top:16px;">
+    <div style="font-size:9px;font-weight:700;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Modos</div>
+    <div class="pomo-row">
+      <div class="pomo-tag on">25 min / 5 descanso</div>
+      <div class="pomo-tag">50 min / 10 descanso</div>
+      <div class="pomo-tag">15 min / 5 descanso</div>
+    </div>
+  </div>
+  <div style="margin-top:16px;">
+    <div style="font-size:9px;font-weight:700;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Ambientes sonoros</div>
+    <div class="sound-row">
+      <div class="sound-item"><span>🌧️</span>Lluvia</div>
+      <div class="sound-item"><span>🔥</span>Fuego</div>
+      <div class="sound-item"><span>☕</span>Café</div>
+      <div class="sound-item"><span>🌿</span>Naturaleza</div>
+      <div class="sound-item"><span>🌊</span>Océano</div>
+      <div class="sound-item"><span>🚀</span>Espacio</div>
+    </div>
+  </div>
+</div>
+
+<!-- DETALLE: CALENDARIO -->
+<div class="detail-block no-break">
+  <div class="detail-head">
+    <div class="detail-ico">📅</div>
+    <div><div class="detail-ttl">Calendario</div><div class="detail-sub">Visualizá tu mes y llevá notas</div></div>
+  </div>
+  <div class="feat-list">
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Vista mensual</strong> — navegás entre meses y ves tu actividad de un vistazo.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Notas por día</strong> — seleccionás cualquier día y escribís una nota personal.</div></div>
+    <div class="feat-item"><div class="feat-dot"></div><div class="feat-txt"><strong>Resumen del mes</strong> — estadísticas de tu actividad general en el mes seleccionado.</div></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer-block no-break">
+  <div class="footer-ttl">HabitFix — Cambia lo que hacés</div>
+  <div class="footer-sub">El complemento perfecto de Guitafix.<br>Mientras Guitafix te ordena la plata, HabitFix te ordena la rutina.</div>
+  <div class="footer-badge">⚡ HabitFix</div>
+</div>
+
+</body>
+</html>

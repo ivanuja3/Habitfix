@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HabitFix — Construí los hábitos que sostienen tu plata</title>
+  <meta name="description" content="HabitFix es el tracker de hábitos que acompaña tu sistema financiero. Rutinas, metas, racha diaria y progreso semanal.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(61,219,61,0.15);
+      padding: 0 24px;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
+    .nav-logo span { color: #3DDB3D; }
+    .nav-cta {
+      background: #3DDB3D; color: #111; border: none; border-radius: 8px;
+      padding: 9px 20px; font-size: 14px; font-weight: 700;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+    }
+    .nav-cta:hover { background: #5ce85c; }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 120px 24px 80px;
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .hero-tag {
+      display: inline-block;
+      background: rgba(61,219,61,0.1);
+      border: 1px solid rgba(61,219,61,0.3);
+      color: #3DDB3D;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 5px 14px; border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 20px;
+    }
+    .hero h1 em { color: #3DDB3D; font-style: normal; }
+    .hero p {
+      font-size: 18px; color: #888; line-height: 1.7;
+      max-width: 560px; margin: 0 auto 36px;
+    }
+    .hero-cta {
+      display: inline-block;
+      background: #3DDB3D; color: #111;
+      padding: 18px 44px; border-radius: 12px;
+      font-size: 17px; font-weight: 800;
+      text-decoration: none; letter-spacing: -0.3px;
+      margin-bottom: 12px;
+    }
+    .hero-cta:hover { background: #5ce85c; }
+    .hero-sub { font-size: 12px; color: #444; margin-top: 10px; }
+
+    /* ── SCREENSHOT HERO ── */
+    .hero-screen {
+      max-width: 1000px;
+      margin: 60px auto 0;
+      padding: 0 24px;
+    }
+    .screen-frame {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.8), 0 0 0 1px rgba(61,219,61,0.08);
+    }
+    .screen-bar {
+      background: #1a1a1a;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 6px;
+      border-bottom: 1px solid #222;
+    }
+    .screen-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .screen-dot:nth-child(1) { background: #ff5f57; }
+    .screen-dot:nth-child(2) { background: #febc2e; }
+    .screen-dot:nth-child(3) { background: #28c840; }
+    .screen-frame img { width: 100%; display: block; }
+
+    /* ── STATS ── */
+    .stats {
+      display: flex; justify-content: center; gap: 0;
+      max-width: 700px; margin: 80px auto;
+      padding: 0 24px;
+      flex-wrap: wrap;
+    }
+    .stat {
+      flex: 1; min-width: 180px;
+      text-align: center;
+      padding: 32px 24px;
+      border: 1px solid #1e1e1e;
+      background: #111;
+    }
+    .stat:first-child { border-radius: 12px 0 0 12px; }
+    .stat:last-child { border-radius: 0 12px 12px 0; }
+    .stat-num { font-size: 2.4rem; font-weight: 800; color: #3DDB3D; }
+    .stat-label { font-size: 13px; color: #555; margin-top: 4px; }
+
+    /* ── SECTION ── */
+    section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .section-tag {
+      font-size: 11px; font-weight: 700; color: #3DDB3D;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800; color: #fff; line-height: 1.2;
+      letter-spacing: -0.5px; margin-bottom: 16px;
+    }
+    .section-title em { color: #3DDB3D; font-style: normal; }
+    .section-desc { font-size: 16px; color: #666; line-height: 1.7; max-width: 500px; }
+
+    /* ── FEATURE ROW ── */
+    .feature-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      padding: 80px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .feature-row.reverse { direction: rtl; }
+    .feature-row.reverse > * { direction: ltr; }
+    .feature-img {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #1e1e1e;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .feature-img img { width: 100%; display: block; }
+    .feature-list { list-style: none; margin-top: 24px; }
+    .feature-list li {
+      font-size: 15px; color: #888; line-height: 1.6;
+      padding: 8px 0; padding-left: 24px;
+      position: relative;
+    }
+    .feature-list li::before {
+      content: '✓';
+      position: absolute; left: 0;
+      color: #3DDB3D; font-weight: 700;
+    }
+
+    /* ── COMBO SECTION ── */
+    .combo {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 20px;
+      padding: 60px 40px;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 80px;
+    }
+    .combo-logos {
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; margin-bottom: 32px; flex-wrap: wrap;
+    }
+    .combo-logo {
+      background: #1a1a1a;
+      border: 1px solid #272727;
+      border-radius: 12px;
+      padding: 16px 28px;
+      font-size: 20px; font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .combo-plus {
+      font-size: 28px; color: #333; font-weight: 300;
+    }
+    .combo h2 { font-size: 1.8rem; font-weight: 800; color: #fff; margin-bottom: 14px; }
+    .combo p { font-size: 16px; color: #666; line-height: 1.7; max-width: 500px; margin: 0 auto; }
+
+    /* ── PRICING ── */
+    .pricing {
+      text-align: center;
+      padding: 80px 24px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .price-box {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 20px;
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .price-box::before {
+      content: '';
+      position: absolute; top: 0; left: 30px; right: 30px; height: 2px;
+      background: linear-gradient(90deg, transparent, #3DDB3D, transparent);
+    }
+    .price-tag { font-size: 11px; font-weight: 700; color: #3DDB3D; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .price-amount { font-size: 3rem; font-weight: 800; color: #fff; margin: 12px 0; }
+    .price-amount span { font-size: 1.2rem; color: #555; font-weight: 400; }
+    .price-perks { list-style: none; margin: 24px 0 32px; text-align: left; }
+    .price-perks li {
+      font-size: 14px; color: #888; padding: 7px 0;
+      padding-left: 22px; position: relative;
+    }
+    .price-perks li::before { content: '✓'; position: absolute; left: 0; color: #3DDB3D; font-weight: 700; }
+    .price-cta {
+      display: block; width: 100%;
+      background: #3DDB3D; color: #111;
+      padding: 18px; border-radius: 12px;
+      font-size: 16px; font-weight: 800;
+      text-decoration: none; text-align: center;
+    }
+    .price-cta:hover { background: #5ce85c; }
+    .price-guarantee { font-size: 12px; color: #444; margin-top: 14px; }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid #1a1a1a;
+      color: #444; font-size: 12px;
+    }
+    footer span { color: #3DDB3D; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .feature-row { grid-template-columns: 1fr; gap: 32px; }
+      .feature-row.reverse { direction: ltr; }
+      .stat:first-child { border-radius: 12px 12px 0 0; }
+      .stat:last-child { border-radius: 0 0 12px 12px; }
+      .stat { min-width: 100%; }
+      .combo { padding: 40px 24px; }
+      .price-box { padding: 36px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Habit<span>Fix</span></div>
+  <a class="nav-cta" href="https://www.guitafix.online/productos/habitfix/">Conseguir HabitFix →</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">✦ Complemento de Guitafix</div>
+  <h1>Construí los hábitos que<br><em>sostienen tu plata</em></h1>
+  <p>Guitafix te muestra a dónde va tu dinero. HabitFix te ayuda a cambiar lo que hacés cada día. Los dos juntos son el sistema completo.</p>
+  <a class="hero-cta" href="https://www.guitafix.online/productos/habitfix/">Quiero HabitFix — $7.250 ARS →</a>
+  <p class="hero-sub">Pago único · Sin suscripción · Acceso inmediato</p>
+</div>
+
+<!-- SCREENSHOT HERO -->
+<div class="hero-screen">
+  <div class="screen-frame">
+    <div class="screen-bar">
+      <div class="screen-dot"></div>
+      <div class="screen-dot"></div>
+      <div class="screen-dot"></div>
+    </div>
+    <img src="Producto/1.png" alt="HabitFix Dashboard" loading="eager">
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-num">6</div>
+    <div class="stat-label">Secciones del sistema</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">∞</div>
+    <div class="stat-label">Hábitos personalizados</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">6</div>
+    <div class="stat-label">Ambientes sonoros Focus</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">1x</div>
+    <div class="stat-label">Pago único para siempre</div>
+  </div>
+</div>
+
+<!-- FEATURE 1 — HÁBITOS SEMANALES -->
+<div class="feature-row">
+  <div class="feature-img">
+    <img src="Producto/3.png" alt="Hábitos semanales">
+  </div>
+  <div>
+    <p class="section-tag">Hábitos semanales</p>
+    <h2 class="section-title">Tildá cada día.<br><em>Construí la racha.</em></h2>
+    <p class="section-desc">Creá tus hábitos personalizados y marcalos día a día de lunes a domingo. El sistema registra tu racha y te muestra cuántos días consecutivos llevás.</p>
+    <ul class="feature-list">
+      <li>Grilla semanal Lun–Dom por hábito</li>
+      <li>Racha acumulada visible en tiempo real</li>
+      <li>Gráfico de evolución semanal por hábito</li>
+      <li>Podés agregar los hábitos que quieras</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 2 — EVOLUCIÓN -->
+<div class="feature-row reverse">
+  <div class="feature-img">
+    <img src="Producto/4.png" alt="Evolución semanal">
+  </div>
+  <div>
+    <p class="section-tag">Evolución y progreso</p>
+    <h2 class="section-title">Ves exactamente<br><em>cómo avanzás.</em></h2>
+    <p class="section-desc">El gráfico de evolución semanal te muestra cómo progresó cada hábito a lo largo de la semana. No más suposiciones — datos reales de tu comportamiento.</p>
+    <ul class="feature-list">
+      <li>Gráfico lineal por hábito con colores únicos</li>
+      <li>Conteo de checks semanales totales</li>
+      <li>Identificás tu hábito más fuerte</li>
+      <li>Progreso semanal en porcentaje</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 3 — DASHBOARD -->
+<div class="feature-row">
+  <div class="feature-img">
+    <img src="Producto/2.png" alt="Dashboard HabitFix">
+  </div>
+  <div>
+    <p class="section-tag">Dashboard diario</p>
+    <h2 class="section-title">Tu rutina de mañana<br><em>y de noche.</em></h2>
+    <p class="section-desc">Organizá tus hábitos en rutinas de mañana y noche. Cada día empezás sabiendo exactamente qué tenés que hacer y cómo vas en la semana.</p>
+    <ul class="feature-list">
+      <li>Rutinas de mañana y noche separadas</li>
+      <li>Estado del ánimo diario (¿Cómo estás hoy?)</li>
+      <li>Progreso semanal circular en tiempo real</li>
+      <li>Racha actual de días consecutivos</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 4 — TAREAS -->
+<div class="feature-row reverse">
+  <div class="feature-img" style="background:#111;border:1px solid #1e1e1e;border-radius:14px;min-height:220px;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center">
+      <div style="font-size:52px;margin-bottom:10px">📋</div>
+      <div style="font-size:15px;font-weight:700;color:#fff">Tareas de la semana</div>
+      <div style="font-size:12px;color:#555;margin-top:4px">Lun → Dom · día por día</div>
+    </div>
+  </div>
+  <div>
+    <p class="section-tag">Tareas semanales</p>
+    <h2 class="section-title">Tu semana entera,<br><em>organizada de un vistazo.</em></h2>
+    <p class="section-desc">Cargá las tareas de cada día y tachá a medida que avanzás. Ves toda la semana de lunes a domingo sin tener que abrir nada más.</p>
+    <ul class="feature-list">
+      <li>Tareas organizadas por día (Lun–Dom)</li>
+      <li>Tildás las que completaste, borrás las que no</li>
+      <li>Limpieza rápida de completadas con un clic</li>
+      <li>Contador de tareas pendientes visible en el Dashboard</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 5 — METAS -->
+<div class="feature-row">
+  <div class="feature-img" style="background:#111;border:1px solid #1e1e1e;border-radius:14px;min-height:220px;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center">
+      <div style="font-size:52px;margin-bottom:10px">🎯</div>
+      <div style="font-size:15px;font-weight:700;color:#fff">Metas del mes</div>
+      <div style="font-size:12px;color:#555;margin-top:4px">4 categorías · todo en un lugar</div>
+    </div>
+  </div>
+  <div>
+    <p class="section-tag">Metas mensuales</p>
+    <h2 class="section-title">Las metas del mes y<br><em>tus rutinas, en un tablero.</em></h2>
+    <p class="section-desc">Definís tus metas principales, anotás nuevas experiencias que querés vivir, y configurás los pasos de tus rutinas de mañana y noche — todo desde un mismo lugar.</p>
+    <ul class="feature-list">
+      <li>🌟 Metas principales del mes con seguimiento</li>
+      <li>🆕 Nuevas experiencias — cosas que querés probar</li>
+      <li>☀️ Rutina de mañana personalizable paso a paso</li>
+      <li>🌙 Rutina de noche personalizable paso a paso</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 6 — FOCUS -->
+<div class="feature-row reverse">
+  <div class="feature-img" style="background:#111;border:1px solid #1e1e1e;border-radius:14px;min-height:220px;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center">
+      <div style="font-size:52px;margin-bottom:10px">⏱️</div>
+      <div style="font-size:15px;font-weight:700;color:#fff">Modo Focus</div>
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:10px;font-size:20px">🌧️🔥☕🌿🌊🚀</div>
+    </div>
+  </div>
+  <div>
+    <p class="section-tag">Modo Focus</p>
+    <h2 class="section-title">Pomodoro + ambiente sonoro<br><em>para concentrarte de verdad.</em></h2>
+    <p class="section-desc">Un timer Pomodoro completo con tres modos de trabajo y seis ambientes sonoros para que puedas entrar en foco en menos de 30 segundos.</p>
+    <ul class="feature-list">
+      <li>Timer Pomodoro: 25/5 · 50/10 · 15/5 min</li>
+      <li>6 ambientes: Lluvia, Fuego, Café, Naturaleza, Océano, Espacio</li>
+      <li>Contador de sesiones del día</li>
+      <li>Campo "tarea de hoy" para definir el objetivo antes de arrancar</li>
+    </ul>
+  </div>
+</div>
+
+<!-- FEATURE 7 — CALENDARIO -->
+<div class="feature-row">
+  <div class="feature-img" style="background:#111;border:1px solid #1e1e1e;border-radius:14px;min-height:220px;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center">
+      <div style="font-size:52px;margin-bottom:10px">📅</div>
+      <div style="font-size:15px;font-weight:700;color:#fff">Calendario mensual</div>
+      <div style="font-size:12px;color:#555;margin-top:4px">Navegación mes a mes</div>
+    </div>
+  </div>
+  <div>
+    <p class="section-tag">Calendario</p>
+    <h2 class="section-title">Visualizá tu mes<br><em>en un solo golpe de vista.</em></h2>
+    <p class="section-desc">Un calendario limpio e integrado para que puedas ubicarte en el tiempo, planificar la semana y tener contexto del mes sin salir de la app.</p>
+    <ul class="feature-list">
+      <li>Vista mensual navegable (← →)</li>
+      <li>Diseño limpio integrado al sistema oscuro</li>
+      <li>Siempre accesible desde el menú lateral</li>
+    </ul>
+  </div>
+</div>
+
+<!-- COMBO GUITAFIX + HABITFIX -->
+<div style="padding: 0 24px;">
+  <div class="combo">
+    <div class="combo-logos">
+      <div class="combo-logo">Guita<span style="color:#3DDB3D">Fix</span></div>
+      <div class="combo-plus">+</div>
+      <div class="combo-logo">Habit<span style="color:#3DDB3D">Fix</span></div>
+    </div>
+    <h2>El sistema financiero completo</h2>
+    <p>Guitafix te muestra en qué gastás. HabitFix te ayuda a cambiar lo que hacés. Juntos atacan el problema desde los dos ángulos: los números y el comportamiento.</p>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="pricing">
+  <div class="price-box">
+    <p class="price-tag">HabitFix — Acceso completo</p>
+    <div class="price-amount">$7.250 <span>ARS</span></div>
+    <ul class="price-perks">
+      <li>Dashboard diario con KPIs, racha y estado de ánimo</li>
+      <li>Rutinas de mañana y noche personalizables</li>
+      <li>Hábitos semanales con racha y gráfico de evolución</li>
+      <li>Tareas organizadas día por día (Lun–Dom)</li>
+      <li>Metas del mes en 4 categorías</li>
+      <li>Focus: Pomodoro (3 modos) + 6 ambientes sonoros</li>
+      <li>Calendario mensual integrado</li>
+      <li>Pago único — tuyo para siempre</li>
+      <li>Actualizaciones futuras incluidas</li>
+    </ul>
+    <a class="price-cta" href="https://www.guitafix.online/productos/habitfix/">Quiero HabitFix →</a>
+    <p class="price-guarantee">🔒 Pago seguro · Garantía 7 días sin preguntas</p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>Habit<span>Fix</span> · Parte del ecosistema <span>Guitafix</span> · guitafix.online</p>
+</footer>
+
+</body>
+</html>
