@@ -183,6 +183,7 @@ body {
 }
 .habit-check.done { background: var(--green); border-color: var(--green); color: var(--black); }
 .habit-check:hover:not(.done) { border-color: var(--green); background: var(--green-dim); }
+.habit-check.today:not(.done) { border-color: var(--green-border); }
 
 .streak-bar { display: flex; align-items: center; gap: 3px; }
 .streak-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface3); flex-shrink: 0; }
@@ -511,7 +512,12 @@ body {
       <div class="page-header">
         <div>
           <div class="page-title">✅ Hábitos semanales</div>
-          <div class="page-sub">Marcá cada día que cumpliste el hábito</div>
+          <div class="page-sub" id="habitsWeekLabel">Marcá cada día que cumpliste el hábito</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="cal-nav" onclick="changeHabitWeek(-1)">←</button>
+          <button class="btn-sm ghost" id="habitWeekToday" onclick="goToCurrentWeek()" style="display:none;">Hoy</button>
+          <button class="cal-nav" onclick="changeHabitWeek(1)">→</button>
         </div>
       </div>
       <div class="card" style="overflow-x: auto;">
@@ -633,7 +639,7 @@ body {
               <button class="pomo-btn primary" id="pomoStartBtn" onclick="togglePomo()">▶ Iniciar</button>
             </div>
           </div>
-          <div class="pomo-sessions">Sesiones hoy: <span id="pomoDots"></span></div>
+          <div class="pomo-sessions">Sesiones hoy: <span id="pomoDots"></span> <span id="pomoTotalToday" style="font-size:10px;color:var(--muted)"></span></div>
         </div>
         <div class="card">
           <div class="card-title">🎵 Ambiente sonoro</div>
@@ -722,13 +728,53 @@ function load(key, def) {
 }
 function save(key, val) { try { localStorage.setItem('hf_'+key, JSON.stringify(val)); } catch {} }
 
-let habits       = load('habits', [
-  { id: 1, name: '10.000 pasos', checks: [false,false,false,false,false,false,false] },
-  { id: 2, name: 'Leer 20 min', checks: [false,false,false,false,false,false,false] },
-  { id: 3, name: 'Tomar 2L de agua', checks: [false,false,false,false,false,false,false] },
-  { id: 4, name: 'Meditar', checks: [false,false,false,false,false,false,false] },
-  { id: 5, name: 'Hacer ejercicio', checks: [false,false,false,false,false,false,false] },
-]);
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ══ FECHAS REALES (la racha y la tabla se basan en el calendario, no en un array fijo) ══
+function dateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function todayDateKey() { return dateKey(new Date()); }
+function addDays(date, n) { const d = new Date(date); d.setDate(d.getDate()+n); return d; }
+function startOfWeek(date) {
+  const clone = new Date(date); clone.setHours(0,0,0,0);
+  const day = clone.getDay();
+  clone.setDate(clone.getDate() + (day === 0 ? -6 : 1 - day));
+  return clone;
+}
+function getWeek(offset) {
+  const monday = addDays(startOfWeek(new Date()), offset*7);
+  return DAYS.map((label, i) => {
+    const date = addDays(monday, i);
+    return { label, date, key: dateKey(date) };
+  });
+}
+
+// Convierte hábitos guardados en el formato viejo (array fijo Lun..Dom) al nuevo (fecha real -> bool)
+function migrateHabit(h) {
+  if (h.completed) return h;
+  const completed = {};
+  if (Array.isArray(h.checks)) {
+    const monday = startOfWeek(new Date());
+    h.checks.forEach((val, i) => { if (val) completed[dateKey(addDays(monday, i))] = true; });
+  }
+  return { id: h.id, name: h.name, completed };
+}
+
+let habits = load('habits', [
+  { id: 1, name: '10.000 pasos', completed: {} },
+  { id: 2, name: 'Leer 20 min', completed: {} },
+  { id: 3, name: 'Tomar 2L de agua', completed: {} },
+  { id: 4, name: 'Meditar', completed: {} },
+  { id: 5, name: 'Hacer ejercicio', completed: {} },
+]).map(migrateHabit);
+let habitWeekOffset = 0;
+
 let todos        = load('todos', { Lun:[], Mar:[], Mié:[], Jue:[], Vie:[], Sáb:[], Dom:[] });
 let goals1       = load('goals1', ['Ahorrar este mes','Leer un libro completo','Hacer ejercicio 4 veces/semana']);
 let goals2       = load('goals2', ['Probar una clase nueva','Cocinar algo diferente']);
@@ -741,29 +787,26 @@ let pomoSessions = load('pomoSessions', 0);
 let pomoWork = 25, pomoBreak = 5, pomoTotal = 25*60;
 let pomoLeft = pomoWork * 60, pomoRunning = false, pomoInterval = null, pomoIsBreak = false;
 
-// ══ RACHA ══
+// ══ RACHA (fechas reales: cruza semanas, no se corta los lunes) ══
 function calculateStreak() {
   if (habits.length === 0) return 0;
-  const todayIdx = (new Date().getDay() + 6) % 7; // Lun=0 … Dom=6
-  const todayDone = habits.some(h => h.checks[todayIdx]);
+  const anyDoneOn = (key) => habits.some(h => h.completed[key]);
+  let cursor = new Date(); cursor.setHours(0,0,0,0);
   // Si hoy ya tiene algo marcado empezamos desde hoy; si no, desde ayer
-  let startIdx = todayDone ? todayIdx : todayIdx - 1;
+  if (!anyDoneOn(dateKey(cursor))) cursor = addDays(cursor, -1);
   let count = 0;
-  for (let i = startIdx; i >= 0; i--) {
-    if (habits.some(h => h.checks[i])) count++;
-    else break;
-  }
+  while (anyDoneOn(dateKey(cursor))) { count++; cursor = addDays(cursor, -1); }
   return count;
 }
 
 // ══ MOTIVACIÓN DINÁMICA ══
 function getDashboardCopy() {
   if (habits.length === 0) return { title: 'Diseñá tu sistema de hábitos', msg: 'Agregá tu primer hábito y HabitFix empieza a medir el progreso.' };
-  const totalChecks = habits.reduce((a, h) => a + h.checks.filter(Boolean).length, 0);
+  const week = getWeek(0);
+  const totalChecks = habits.reduce((a, h) => a + week.filter(d => h.completed[d.key]).length, 0);
   const totalSlots  = habits.length * 7;
   const pct = totalSlots > 0 ? Math.round((totalChecks / totalSlots) * 100) : 0;
-  const todayIdx = (new Date().getDay() + 6) % 7;
-  const todayDone = habits.filter(h => h.checks[todayIdx]).length;
+  const todayDone = habits.filter(h => h.completed[todayDateKey()]).length;
 
   if (totalChecks === 0) return { title: 'Hoy puede ser el primer tilde', msg: 'No necesitás una semana perfecta. Necesitás no abandonar la cadena.' };
   if (pct < 35)  return { title: 'Ya arrancaste: dale continuidad', msg: `Llevás ${pct}% de la semana. El próximo check cambia el ritmo.` };
@@ -786,11 +829,13 @@ function renderHabitLineChart() {
   labelsGroup.innerHTML = '';
   pointsGroup.innerHTML = '';
 
+  const week = getWeek(habitWeekOffset);
+  const countMarked = (h) => week.filter(d => h.completed[d.key]).length;
   const chartLeft = 64, chartRight = 684, chartTop = 44, chartBottom = 258;
   const xStep = (chartRight - chartLeft) / 6;
   const visibleHabits = habits.slice(0, 5);
-  const maxMarked = Math.max(1, ...habits.map(h => h.checks.filter(Boolean).length));
-  const totalChecks = habits.reduce((a, h) => a + h.checks.filter(Boolean).length, 0);
+  const maxMarked = Math.max(1, ...habits.map(countMarked));
+  const totalChecks = habits.reduce((a, h) => a + countMarked(h), 0);
 
   // Meta text
   const chartMeta = document.getElementById('chartMeta');
@@ -798,7 +843,7 @@ function renderHabitLineChart() {
     if (totalChecks === 0) {
       chartMeta.textContent = 'Marcá días para ver cómo crece cada curva.';
     } else {
-      const strongest = habits.map(h => ({ name: h.name, count: h.checks.filter(Boolean).length })).sort((a,b) => b.count - a.count)[0];
+      const strongest = habits.map(h => ({ name: h.name, count: countMarked(h) })).sort((a,b) => b.count - a.count)[0];
       chartMeta.textContent = `${totalChecks} checks esta semana. Más fuerte: ${strongest.name} (${strongest.count} días).`;
     }
   }
@@ -815,13 +860,13 @@ function renderHabitLineChart() {
   }
 
   // X axis labels
-  DAYS.forEach((day, index) => {
+  week.forEach((day, index) => {
     const x = chartLeft + xStep * index;
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     label.setAttribute('class', 'chart-label');
     label.setAttribute('x', x);
     label.setAttribute('y', '285');
-    label.textContent = day;
+    label.textContent = day.label;
     labelsGroup.appendChild(label);
   });
 
@@ -829,15 +874,15 @@ function renderHabitLineChart() {
   visibleHabits.forEach((habit, habitIndex) => {
     const color = HABIT_COLORS_CHART[habitIndex % HABIT_COLORS_CHART.length];
     let accumulated = 0;
-    const points = DAYS.map((day, dayIndex) => {
-      if (habit.checks[dayIndex]) accumulated++;
+    const points = week.map((day, dayIndex) => {
+      if (habit.completed[day.key]) accumulated++;
       const x = chartLeft + xStep * dayIndex;
       const y = chartBottom - ((chartBottom - chartTop) * accumulated) / maxMarked;
-      return { x, y, marked: habit.checks[dayIndex] };
+      return { x, y, marked: Boolean(habit.completed[day.key]) };
     });
 
     const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const hasAny = habit.checks.some(Boolean);
+    const hasAny = countMarked(habit) > 0;
 
     const track = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     track.setAttribute('class', hasAny ? 'habit-track' : 'habit-track is-empty');
@@ -940,35 +985,57 @@ function renderQuote() {
 function renderHabits() {
   const tbody = document.getElementById('habitBody');
   tbody.innerHTML = '';
+  const week = getWeek(habitWeekOffset);
+  const todayK = todayDateKey();
+
   habits.forEach(h => {
-    const count = h.checks.filter(Boolean).length;
+    const count = week.filter(d => h.completed[d.key]).length;
     const tr = document.createElement('tr');
-    let cells = `<td class="habit-name">${h.name}</td>`;
-    h.checks.forEach((c, i) => {
-      cells += `<td><div class="habit-check ${c?'done':''}" onclick="toggleHabit(${h.id},${i})">${c?'✓':''}</div></td>`;
+    let cells = `<td class="habit-name">${escapeHtml(h.name)}</td>`;
+    week.forEach(day => {
+      const c = Boolean(h.completed[day.key]);
+      const todayClass = day.key === todayK ? ' today' : '';
+      cells += `<td><div class="habit-check ${c?'done':''}${todayClass}" onclick="toggleHabit(${h.id},'${day.key}')">${c?'✓':''}</div></td>`;
     });
     cells += `<td><div class="streak-bar">`;
-    for(let i=0;i<7;i++) cells += `<div class="streak-dot ${h.checks[i]?'on':''}"></div>`;
+    week.forEach(day => { cells += `<div class="streak-dot ${h.completed[day.key]?'on':''}"></div>`; });
     cells += `<span class="streak-count">${count}</span></div></td>`;
     cells += `<td><button class="btn-sm danger" onclick="removeHabit(${h.id})">✕</button></td>`;
     tr.innerHTML = cells;
     tbody.appendChild(tr);
   });
+
+  const label = document.getElementById('habitsWeekLabel');
+  if (label) {
+    const fmt = (d) => d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+    label.textContent = habitWeekOffset === 0
+      ? `Esta semana (${fmt(week[0].date)} – ${fmt(week[6].date)})`
+      : `${fmt(week[0].date)} – ${fmt(week[6].date)}`;
+  }
+  const todayBtn = document.getElementById('habitWeekToday');
+  if (todayBtn) todayBtn.style.display = habitWeekOffset === 0 ? 'none' : 'inline-block';
+
   updateKPIs();
   updateWeekProgress();
   updateMotivation();
   renderHabitLineChart();
 }
 
-function toggleHabit(id, day) {
+function changeHabitWeek(dir) { habitWeekOffset += dir; renderHabits(); }
+function goToCurrentWeek() { habitWeekOffset = 0; renderHabits(); }
+
+function toggleHabit(id, key) {
   const h = habits.find(x => x.id === id);
-  if(h) { h.checks[day] = !h.checks[day]; save('habits', habits); renderHabits(); }
+  if(h) {
+    if (h.completed[key]) delete h.completed[key]; else h.completed[key] = true;
+    save('habits', habits); renderHabits();
+  }
 }
 function addHabit() {
   const inp = document.getElementById('newHabitInput');
   const name = inp.value.trim();
   if(!name) return;
-  habits.push({ id: Date.now(), name, checks: [false,false,false,false,false,false,false] });
+  habits.push({ id: Date.now(), name, completed: {} });
   save('habits', habits);
   inp.value = '';
   renderHabits();
@@ -995,7 +1062,7 @@ function renderTodos() {
         ${items.map((t,i) => `
           <div class="todo-item">
             <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${day}',${i})">
-            <span class="${t.done?'done-text':''}">${t.text}</span>
+            <span class="${t.done?'done-text':''}">${escapeHtml(t.text)}</span>
           </div>`).join('')}
       </div>
       <div class="todo-add">
@@ -1034,7 +1101,7 @@ function renderGoalList(elId, arr, listNum) {
   el.innerHTML = arr.map((g,i) => `
     <div class="goal-item ${g.done?'done-g':''}">
       <input type="checkbox" ${g.done?'checked':''} onchange="toggleGoal(${listNum},${i})" style="accent-color:var(--green)">
-      <span>${typeof g === 'string' ? g : g.text}</span>
+      <span>${escapeHtml(typeof g === 'string' ? g : g.text)}</span>
       <button class="btn-sm danger" style="padding:2px 6px;font-size:10px;" onclick="removeGoal(${listNum},${i})">✕</button>
     </div>`).join('');
 }
@@ -1072,7 +1139,7 @@ function renderRoutineList(elId, arr, doneArr, type) {
     const done = doneArr.includes(i);
     return `<div class="routine-item ${done?'done':''}" onclick="toggleRoutine('${type}',${i})">
       <div class="routine-check2">${done?'✓':''}</div>
-      <span class="routine-text">${item}</span>
+      <span class="routine-text">${escapeHtml(item)}</span>
     </div>`;
   }).join('');
 }
@@ -1091,7 +1158,7 @@ function renderRoutineEdit(elId, arr, type) {
   if(!el) return;
   el.innerHTML = arr.map((item, i) => `
     <div class="goal-item">
-      <span style="flex:1">${item}</span>
+      <span style="flex:1">${escapeHtml(item)}</span>
       <button class="btn-sm danger" style="padding:2px 6px;font-size:10px;" onclick="removeRoutineItem('${type}',${i})">✕</button>
     </div>`).join('');
 }
@@ -1126,8 +1193,7 @@ function restoreMood() {
 
 // ══ KPIs ══
 function updateKPIs() {
-  const todayIdx = (new Date().getDay() + 6) % 7;
-  const done = habits.filter(h => h.checks[todayIdx]).length;
+  const done = habits.filter(h => h.completed[todayDateKey()]).length;
   document.getElementById('kpiHabitsToday').textContent = `${done}/${habits.length}`;
 
   const pending = DAYS.reduce((acc, d) => acc + (todos[d]||[]).filter(t=>!t.done).length, 0);
@@ -1143,8 +1209,9 @@ function updateKPIs() {
 }
 
 function updateWeekProgress() {
+  const week = getWeek(0);
   const total = habits.length * 7;
-  const done = habits.reduce((a,h) => a + h.checks.filter(Boolean).length, 0);
+  const done = habits.reduce((a,h) => a + week.filter(d => h.completed[d.key]).length, 0);
   const pct = total > 0 ? Math.round((done/total)*100) : 0;
   const circle = document.getElementById('progressCircle');
   const circumference = 251.2;
@@ -1206,7 +1273,8 @@ function saveCalNote() {
 }
 function updateCalSummary() {
   const notesCount = Object.keys(calNotes).filter(k => k.startsWith(`${calYear}-${calMonth}-`)).length;
-  const habDone = habits.reduce((a,h) => a + h.checks.filter(Boolean).length, 0);
+  const week = getWeek(0);
+  const habDone = habits.reduce((a,h) => a + week.filter(d => h.completed[d.key]).length, 0);
   document.getElementById('calSummary').innerHTML = `
     📌 Notas este mes: <strong style="color:var(--white)">${notesCount}</strong><br>
     ✅ Hábitos cumplidos esta semana: <strong style="color:var(--green)">${habDone}</strong><br>
@@ -1266,7 +1334,7 @@ function renderPomoDots() {
   let html = '';
   for(let i=0;i<4;i++) html += `<span class="pomo-dot ${i < pomoSessions % 4 ? 'done':''}"></span>`;
   el.innerHTML = html;
-  el.insertAdjacentHTML('afterend', ` <span style="font-size:10px;color:var(--muted)">(${pomoSessions} total hoy)</span>`);
+  document.getElementById('pomoTotalToday').textContent = `(${pomoSessions} total hoy)`;
 }
 
 // ══ AMBIENT ══
