@@ -390,6 +390,84 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .view.active { animation: fadeIn 0.25s ease; }
+
+/* ══ NOTAS ══ */
+.notes-layout { display: grid; grid-template-columns: 210px 1fr; gap: 16px; align-items: start; }
+@media(max-width:700px){ .notes-layout { grid-template-columns: 1fr; } }
+.notes-cats-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; position: sticky; top: 20px; }
+.notes-cats-title { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.note-cat-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--muted2); font-weight: 500; transition: all .15s; }
+.note-cat-item:hover { background: var(--surface3); color: var(--text); }
+.note-cat-item.active { background: var(--green-dim); color: var(--green); font-weight: 600; }
+.note-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.note-cat-count { margin-left: auto; font-size: 10px; font-weight: 700; background: var(--surface3); color: var(--muted); padding: 1px 6px; border-radius: 10px; }
+.note-cat-item.active .note-cat-count { background: var(--green-dim); color: var(--green); }
+.note-cat-add { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.note-cat-add input { flex: 1; background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; color: var(--text); outline: none; font-family: 'DM Sans',sans-serif; }
+.note-cat-add input:focus { border-color: var(--green); }
+.note-cat-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; opacity: 0; padding: 0 2px; transition: opacity .15s; }
+.note-cat-item:hover .note-cat-del { opacity: 1; }
+.note-cat-del:hover { color: var(--red); }
+
+.notes-main { display: flex; flex-direction: column; gap: 12px; }
+.notes-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.notes-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; text-align: center; cursor: pointer; transition: border-color .15s; }
+.notes-stat:hover { border-color: var(--border2); }
+.notes-stat.active { border-color: var(--green); }
+.notes-stat.danger { border-color: transparent; }
+.notes-stat.danger .nstat-num { color: var(--red); }
+.notes-stat.active-danger { border-color: var(--red); }
+.nstat-num { font-size: 22px; font-weight: 900; color: var(--green); letter-spacing: -1px; line-height: 1; }
+.nstat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-top: 3px; }
+
+.notes-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.notes-search { flex: 1; min-width: 160px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text); outline: none; font-family: 'DM Sans',sans-serif; }
+.notes-search:focus { border-color: var(--green); }
+.notes-search::placeholder { color: var(--muted); }
+.notes-filters { display: flex; gap: 2px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.nfilter-btn { border: none; background: transparent; color: var(--muted2); padding: 5px 11px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: 'DM Sans',sans-serif; transition: all .15s; white-space: nowrap; }
+.nfilter-btn.active { background: var(--green); color: #000; }
+.nfilter-btn:hover:not(.active) { color: var(--text); }
+
+.note-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border-color .15s; }
+.note-item:hover { border-color: var(--border2); }
+.note-item.overdue { border-left: 3px solid var(--red); }
+.note-item.done-note { opacity: .65; }
+.note-item-top { display: flex; align-items: flex-start; gap: 10px; }
+.note-item-top input[type=checkbox] { accent-color: var(--green); cursor: pointer; margin-top: 3px; flex-shrink: 0; width: 15px; height: 15px; }
+.note-item-body { flex: 1; min-width: 0; }
+.note-title { font-size: 14px; font-weight: 700; color: var(--white); line-height: 1.3; outline: none; word-break: break-word; }
+.note-title:focus { border-bottom: 1px solid var(--green); }
+.note-item.done-note .note-title { text-decoration: line-through; color: var(--muted); }
+.note-body { font-size: 13px; color: var(--muted2); line-height: 1.6; outline: none; white-space: pre-wrap; word-break: break-word; margin-top: 4px; min-height: 0; }
+.note-body:focus { color: var(--text); }
+.note-body:empty::before { content: attr(data-placeholder); color: var(--muted); }
+.note-item.done-note .note-body { text-decoration: line-through; }
+.note-item-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.note-action-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 3px 5px; border-radius: 6px; opacity: .5; transition: opacity .15s, color .15s; }
+.note-item:hover .note-action-btn { opacity: 1; }
+.note-action-btn:hover { color: var(--red); background: var(--surface3); }
+.note-action-btn.img-btn:hover { color: var(--blue); }
+.note-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.note-cat-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.note-date-badge { font-size: 10px; color: var(--muted); font-family: 'DM Mono',monospace; display: flex; align-items: center; gap: 4px; }
+.note-date-badge.overdue { color: var(--red); font-weight: 700; }
+.note-date-badge.done-date { color: var(--green); }
+.note-date-input { background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font-size: 11px; color: var(--text); font-family: 'DM Mono',monospace; outline: none; cursor: pointer; }
+.note-date-input:focus { border-color: var(--green); }
+.note-img-wrap { position: relative; display: inline-block; margin-top: 10px; }
+.note-img-thumb { max-width: 200px; max-height: 140px; border-radius: 8px; border: 1px solid var(--border); display: block; cursor: zoom-in; }
+.note-img-del { position: absolute; top: -8px; right: -8px; background: var(--red); color: #fff; border: 2px solid var(--black); border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.note-add-row { display: flex; gap: 8px; padding: 12px 0 4px; border-top: 1px dashed var(--border); margin-top: 8px; }
+.note-add-input { flex: 1; background: var(--surface3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text); outline: none; font-family: 'DM Sans',sans-serif; }
+.note-add-input:focus { border-color: var(--green); }
+.note-add-input::placeholder { color: var(--muted); }
+.notes-empty { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 14px; }
+.notes-empty span { display: block; font-size: 36px; margin-bottom: 12px; }
+
+#notesLightbox { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: none; align-items: center; justify-content: center; z-index: 200; cursor: zoom-out; }
+#notesLightbox.open { display: flex; }
+#notesLightbox img { max-width: 92vw; max-height: 92vh; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -424,6 +502,7 @@ body {
     <div class="nav-section">Herramientas</div>
     <div class="nav-item" onclick="switchView('focus',this)"><span class="nav-icon">⏱️</span> Focus</div>
     <div class="nav-item" onclick="switchView('calendar',this)"><span class="nav-icon">📅</span> Calendario</div>
+    <div class="nav-item" onclick="switchView('notes',this)"><span class="nav-icon">📝</span> Notas</div>
 
     <div class="sidebar-bottom">
       <div class="date-display" id="sidebarDate"></div>
@@ -694,7 +773,55 @@ body {
       </div>
     </div>
 
+    <!-- ═══ NOTAS ═══ -->
+    <div id="view-notes" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📝 Notas</div>
+          <div class="page-sub">Organizá tus ideas, tareas y recordatorios</div>
+        </div>
+        <button class="btn-sm" onclick="openAddNote()" style="padding:8px 16px;font-size:13px;">+ Nueva nota</button>
+      </div>
+
+      <div class="notes-layout">
+        <!-- Panel izquierdo: categorías -->
+        <div class="notes-cats-panel">
+          <div class="notes-cats-title">Categorías</div>
+          <div id="notesCatList"></div>
+          <div class="note-cat-add">
+            <input id="newCatInput" placeholder="Nueva categoría..." onkeydown="if(event.key==='Enter')addNoteCat()">
+            <button class="btn-sm" onclick="addNoteCat()">+</button>
+          </div>
+        </div>
+
+        <!-- Panel derecho: notas -->
+        <div class="notes-main">
+          <!-- Stats -->
+          <div class="notes-stats" id="notesStats"></div>
+
+          <!-- Toolbar -->
+          <div class="notes-toolbar">
+            <input class="notes-search" id="notesSearch" placeholder="🔍  Buscar notas..." oninput="renderNotesList()">
+            <div class="notes-filters">
+              <button class="nfilter-btn active" onclick="setNoteFilter('all',this)">Todas</button>
+              <button class="nfilter-btn" onclick="setNoteFilter('pending',this)">Pendientes</button>
+              <button class="nfilter-btn" onclick="setNoteFilter('done',this)">Hechas</button>
+              <button class="nfilter-btn" onclick="setNoteFilter('overdue',this)">Vencidas</button>
+            </div>
+          </div>
+
+          <!-- Lista de notas -->
+          <div id="notesList"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- Lightbox -->
+<div id="notesLightbox" onclick="this.classList.remove('open')">
+  <img id="notesLightboxImg" src="" alt="">
 </div>
 
 <script>
@@ -947,6 +1074,7 @@ window.addEventListener('DOMContentLoaded', () => {
   updateStreak();
   renderPomoDots();
   restoreMood();
+  renderNotes();
   const now = new Date();
   document.getElementById('goalsMonthLabel').textContent = MONTHS_ES[now.getMonth()] + ' ' + now.getFullYear();
 });
@@ -962,6 +1090,7 @@ function switchView(id, el) {
     document.getElementById('sidebarOverlay').classList.remove('visible');
   }
   if(id === 'habits') renderHabitLineChart();
+  if(id === 'notes')  renderNotes();
 }
 function toggleSidebar() {
   const open = document.getElementById('sidebar').classList.toggle('open');
@@ -1359,6 +1488,232 @@ function renderPomoDots() {
   for(let i=0;i<4;i++) html += `<span class="pomo-dot ${i < pomoSessions % 4 ? 'done':''}"></span>`;
   el.innerHTML = html;
   el.insertAdjacentHTML('afterend', ` <span style="font-size:10px;color:var(--muted)">(${pomoSessions} total hoy)</span>`);
+}
+
+// ══ NOTAS ══
+const NOTE_CAT_COLORS = ['#4A9EFF','#3DDB3D','#F5A623','#E84040','#B892FF','#4DD4AC','#FF9F5A','#FF8FAB'];
+let noteCats  = load('noteCats', [
+  { id: 'nc1', name: 'General',  color: '#4A9EFF', icon: '📝' },
+  { id: 'nc2', name: 'Ideas',    color: '#F5A623', icon: '💡' },
+  { id: 'nc3', name: 'Trabajo',  color: '#3DDB3D', icon: '💼' },
+]);
+let notesData = load('notesData', []);
+let noteFilter   = 'all';
+let noteActiveCat = 'all';
+
+function noteId() { return 'n' + Date.now() + Math.random().toString(36).slice(2,6); }
+function catById(id) { return noteCats.find(c => c.id === id); }
+function isOverdue(n) { return !n.done && n.dueDate && new Date(n.dueDate) < new Date(new Date().toDateString()); }
+function fmtNoteDate(iso) {
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function renderNotes() {
+  renderNoteCats();
+  renderNotesStats();
+  renderNotesList();
+}
+
+function renderNoteCats() {
+  const el = document.getElementById('notesCatList');
+  const countAll = notesData.length;
+  let html = `<div class="note-cat-item ${noteActiveCat==='all'?'active':''}" onclick="setNoteCat('all')">
+    <span style="font-size:14px;">🗂️</span> <span>Todas</span>
+    <span class="note-cat-count">${countAll}</span>
+  </div>`;
+  noteCats.forEach(c => {
+    const cnt = notesData.filter(n => n.catId === c.id).length;
+    html += `<div class="note-cat-item ${noteActiveCat===c.id?'active':''}" onclick="setNoteCat('${c.id}')">
+      <span class="note-cat-dot" style="background:${c.color}"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.icon} ${c.name}</span>
+      <span class="note-cat-count">${cnt}</span>
+      <button class="note-cat-del" onclick="event.stopPropagation();deleteNoteCat('${c.id}')" title="Eliminar">✕</button>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderNotesStats() {
+  const total   = notesData.length;
+  const pending = notesData.filter(n => !n.done).length;
+  const done    = notesData.filter(n => n.done).length;
+  const overdue = notesData.filter(isOverdue).length;
+  document.getElementById('notesStats').innerHTML = `
+    <div class="notes-stat ${noteFilter==='all'?'active':''}" onclick="setNoteFilter('all',null)">
+      <div class="nstat-num">${total}</div><div class="nstat-lbl">Total</div>
+    </div>
+    <div class="notes-stat ${noteFilter==='pending'?'active':''}" onclick="setNoteFilter('pending',null)">
+      <div class="nstat-num" style="color:var(--amber)">${pending}</div><div class="nstat-lbl">Pendientes</div>
+    </div>
+    <div class="notes-stat ${noteFilter==='done'?'active':''}" onclick="setNoteFilter('done',null)">
+      <div class="nstat-num" style="color:var(--blue)">${done}</div><div class="nstat-lbl">Hechas</div>
+    </div>
+    <div class="notes-stat ${overdue>0?'danger':''} ${noteFilter==='overdue'?'active-danger':''}" onclick="setNoteFilter('overdue',null)">
+      <div class="nstat-num" style="color:${overdue>0?'var(--red)':'var(--muted)'}">${overdue}</div><div class="nstat-lbl">Vencidas</div>
+    </div>`;
+}
+
+function renderNotesList() {
+  const q = (document.getElementById('notesSearch')?.value || '').toLowerCase();
+  let list = [...notesData];
+  if(noteActiveCat !== 'all') list = list.filter(n => n.catId === noteActiveCat);
+  if(noteFilter === 'pending') list = list.filter(n => !n.done);
+  if(noteFilter === 'done')    list = list.filter(n => n.done);
+  if(noteFilter === 'overdue') list = list.filter(isOverdue);
+  if(q) list = list.filter(n => n.title.toLowerCase().includes(q) || (n.text||'').toLowerCase().includes(q));
+
+  // Orden: vencidas primero, luego pendientes, luego hechas
+  list.sort((a,b) => {
+    if(a.done !== b.done) return a.done ? 1 : -1;
+    if(isOverdue(a) !== isOverdue(b)) return isOverdue(a) ? -1 : 1;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  const el = document.getElementById('notesList');
+  if(!list.length) {
+    el.innerHTML = `<div class="notes-empty"><span>📝</span>${q ? 'No se encontraron notas.' : 'Sin notas todavía. ¡Agregá una!'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(n => {
+    const cat = catById(n.catId);
+    const ov  = isOverdue(n);
+    const catBadge = cat ? `<span class="note-cat-badge" style="background:${cat.color}22;color:${cat.color};border:1px solid ${cat.color}44;">${cat.icon} ${cat.name}</span>` : '';
+    let dateBadge = '';
+    if(n.done && n.completedAt) {
+      dateBadge = `<span class="note-date-badge done-date">✓ ${fmtNoteDate(n.completedAt)}</span>`;
+    } else if(n.dueDate) {
+      dateBadge = `<span class="note-date-badge ${ov?'overdue':''}">${ov?'⚠️ Vencida:':'📅'} ${fmtNoteDate(n.dueDate)}</span>`;
+    }
+    const imgHtml = n.imgData ? `<div class="note-img-wrap">
+      <img class="note-img-thumb" src="${n.imgData}" onclick="openNoteLightbox('${n.id}')" alt="imagen">
+      <button class="note-img-del" onclick="removeNoteImg('${n.id}')">✕</button>
+    </div>` : '';
+    return `<div class="note-item ${ov?'overdue':''} ${n.done?'done-note':''}" id="note-${n.id}">
+      <div class="note-item-top">
+        <input type="checkbox" ${n.done?'checked':''} onchange="toggleNote('${n.id}')">
+        <div class="note-item-body">
+          <div class="note-title" contenteditable="true"
+            onblur="saveNoteTitle('${n.id}',this)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+          >${n.title}</div>
+          <div class="note-body" contenteditable="true" data-placeholder="Agregar descripción..."
+            onblur="saveNoteText('${n.id}',this)"
+          >${n.text||''}</div>
+          <div class="note-meta">
+            ${catBadge}
+            <input type="date" class="note-date-input" value="${n.dueDate||''}" onchange="saveNoteDue('${n.id}',this.value)" title="Fecha de vencimiento">
+            ${dateBadge}
+          </div>
+          ${imgHtml}
+        </div>
+        <div class="note-item-actions">
+          <button class="note-action-btn img-btn" onclick="triggerNoteImg('${n.id}')" title="Agregar imagen">🖼️</button>
+          <button class="note-action-btn" onclick="deleteNote('${n.id}')" title="Eliminar">✕</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setNoteCat(id) { noteActiveCat = id; renderNotes(); }
+function setNoteFilter(f, btn) {
+  noteFilter = f;
+  if(btn) document.querySelectorAll('.nfilter-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderNotesStats();
+  renderNotesList();
+}
+
+function openAddNote() {
+  const catId = noteActiveCat !== 'all' ? noteActiveCat : (noteCats[0]?.id || null);
+  notesData.unshift({ id: noteId(), title: 'Nueva nota', text: '', catId, dueDate: '', done: false, createdAt: new Date().toISOString(), completedAt: null, imgData: null });
+  save('notesData', notesData);
+  renderNotes();
+  // Foco en el título de la primera nota
+  setTimeout(() => {
+    const el = document.querySelector('.note-title');
+    if(el){ el.focus(); const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }
+  }, 50);
+}
+
+function toggleNote(id) {
+  const n = notesData.find(x => x.id === id);
+  if(!n) return;
+  n.done = !n.done;
+  n.completedAt = n.done ? new Date().toISOString().split('T')[0] : null;
+  save('notesData', notesData);
+  renderNotes();
+}
+
+function deleteNote(id) {
+  notesData = notesData.filter(x => x.id !== id);
+  save('notesData', notesData);
+  renderNotes();
+}
+
+function saveNoteTitle(id, el) {
+  const n = notesData.find(x => x.id === id);
+  if(n){ n.title = el.innerText.trim() || 'Sin título'; save('notesData', notesData); renderNotesStats(); }
+}
+function saveNoteText(id, el) {
+  const n = notesData.find(x => x.id === id);
+  if(n){ n.text = el.innerText; save('notesData', notesData); }
+}
+function saveNoteDue(id, val) {
+  const n = notesData.find(x => x.id === id);
+  if(n){ n.dueDate = val; save('notesData', notesData); renderNotes(); }
+}
+
+function addNoteCat() {
+  const inp = document.getElementById('newCatInput');
+  const name = inp.value.trim();
+  if(!name) return;
+  const icons = ['📁','🏷️','⭐','🔖','📌','🧩','🎯','💎'];
+  const idx = noteCats.length % NOTE_CAT_COLORS.length;
+  noteCats.push({ id: 'nc' + Date.now(), name, color: NOTE_CAT_COLORS[idx], icon: icons[idx] });
+  save('noteCats', noteCats);
+  inp.value = '';
+  renderNotes();
+}
+
+function deleteNoteCat(id) {
+  if(!confirm('¿Eliminar categoría? Las notas quedan sin categoría.')) return;
+  noteCats = noteCats.filter(c => c.id !== id);
+  notesData.forEach(n => { if(n.catId === id) n.catId = null; });
+  save('noteCats', noteCats);
+  save('notesData', notesData);
+  if(noteActiveCat === id) noteActiveCat = 'all';
+  renderNotes();
+}
+
+function triggerNoteImg(id) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const n = notesData.find(x => x.id === id);
+      if(n){ n.imgData = ev.target.result; save('notesData', notesData); renderNotesList(); }
+    };
+    reader.readAsDataURL(file);
+  };
+  inp.click();
+}
+
+function removeNoteImg(id) {
+  const n = notesData.find(x => x.id === id);
+  if(n){ n.imgData = null; save('notesData', notesData); renderNotesList(); }
+}
+
+function openNoteLightbox(id) {
+  const n = notesData.find(x => x.id === id);
+  if(!n?.imgData) return;
+  document.getElementById('notesLightboxImg').src = n.imgData;
+  document.getElementById('notesLightbox').classList.add('open');
 }
 
 // ══ AMBIENT ══
