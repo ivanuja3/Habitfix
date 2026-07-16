@@ -313,10 +313,17 @@ body {
 .goal-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .goal-card-icon { font-size: 18px; }
 .goal-card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted2); }
-.goal-item { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); }
+.goal-item { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); }
 .goal-item:last-child { border-bottom: none; }
-.goal-item input[type="checkbox"] { accent-color: var(--green); cursor: pointer; }
-.goal-item.done-g span { text-decoration: line-through; color: var(--muted); }
+.goal-item input[type="checkbox"] { accent-color: var(--green); cursor: pointer; margin-top: 3px; flex-shrink: 0; }
+.goal-item-body { flex: 1; min-width: 0; }
+.goal-item-text { font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
+.goal-item.done-g .goal-item-text { text-decoration: line-through; color: var(--muted); }
+.goal-item-meta { display: flex; gap: 10px; margin-top: 3px; flex-wrap: wrap; }
+.goal-meta-tag { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.goal-meta-tag.done { color: var(--green); }
+.goal-item-actions { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
+.goal-edit-input { background: var(--surface3); border: 1px solid var(--green); border-radius: 6px; padding: 3px 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); outline: none; width: 100%; margin-top: 2px; }
 .goal-input-row { display: flex; gap: 6px; margin-top: 10px; }
 .goal-input-field { flex: 1; background: var(--surface3); border: 1px solid var(--border2); border-radius: 6px; padding: 6px 10px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text); outline: none; }
 .goal-input-field:focus { border-color: var(--green); }
@@ -1063,7 +1070,21 @@ function clearDoneTodos() {
 }
 
 // ══ GOALS ══
+function goalArr(n) { return n===1 ? goals1 : goals2; }
+function goalSave(n) { save(n===1?'goals1':'goals2', goalArr(n)); }
+function fmtGoalDate(iso) {
+  if(!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-AR', { day:'2-digit', month:'short', year:'numeric' });
+}
+function migrateGoal(g) {
+  if(typeof g === 'string') return { text: g, done: false, createdAt: null, completedAt: null };
+  return { text: g.text||'', done: !!g.done, createdAt: g.createdAt||null, completedAt: g.completedAt||null };
+}
+
 function renderGoals() {
+  goals1 = goals1.map(migrateGoal);
+  goals2 = goals2.map(migrateGoal);
   renderGoalList('goalList1', goals1, 1);
   renderGoalList('goalList2', goals2, 2);
   renderRoutineEdit('morningEditList', morningR, 'morning');
@@ -1071,29 +1092,60 @@ function renderGoals() {
 }
 function renderGoalList(elId, arr, listNum) {
   const el = document.getElementById(elId);
+  if(!arr.length) { el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">Sin metas aún</div>'; return; }
   el.innerHTML = arr.map((g,i) => `
-    <div class="goal-item ${g.done?'done-g':''}">
-      <input type="checkbox" ${g.done?'checked':''} onchange="toggleGoal(${listNum},${i})" style="accent-color:var(--green)">
-      <span>${typeof g === 'string' ? g : g.text}</span>
-      <button class="btn-sm danger" style="padding:2px 6px;font-size:10px;" onclick="removeGoal(${listNum},${i})">✕</button>
+    <div class="goal-item ${g.done?'done-g':''}" id="gitem-${listNum}-${i}">
+      <input type="checkbox" ${g.done?'checked':''} onchange="toggleGoal(${listNum},${i})">
+      <div class="goal-item-body">
+        <div class="goal-item-text" id="gtxt-${listNum}-${i}">${g.text}</div>
+        <div class="goal-item-meta">
+          ${g.createdAt ? `<span class="goal-meta-tag">📅 ${fmtGoalDate(g.createdAt)}</span>` : ''}
+          ${g.done && g.completedAt ? `<span class="goal-meta-tag done">✓ ${fmtGoalDate(g.completedAt)}</span>` : ''}
+        </div>
+      </div>
+      <div class="goal-item-actions">
+        <button class="btn-sm" style="padding:2px 7px;font-size:10px;" onclick="startEditGoal(${listNum},${i})" title="Editar">✏️</button>
+        <button class="btn-sm danger" style="padding:2px 7px;font-size:10px;" onclick="removeGoal(${listNum},${i})" title="Eliminar">✕</button>
+      </div>
     </div>`).join('');
+}
+function startEditGoal(listNum, i) {
+  const arr = goalArr(listNum);
+  const bodyEl = document.querySelector(`#gitem-${listNum}-${i} .goal-item-body`);
+  const txtEl  = document.getElementById(`gtxt-${listNum}-${i}`);
+  const inp = document.createElement('input');
+  inp.className = 'goal-edit-input';
+  inp.value = arr[i].text;
+  txtEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+  const save_ = () => {
+    const val = inp.value.trim();
+    if(val) { arr[i].text = val; goalSave(listNum); }
+    renderGoals();
+  };
+  inp.addEventListener('blur', save_);
+  inp.addEventListener('keydown', e => { if(e.key==='Enter') inp.blur(); if(e.key==='Escape') { inp.removeEventListener('blur',save_); renderGoals(); } });
 }
 function addGoal(listNum) {
   const inp = document.getElementById(`goalInput${listNum}`);
   const text = inp.value.trim();
   if(!text) return;
-  if(listNum===1) { goals1.push({ text, done:false }); save('goals1', goals1); }
-  else            { goals2.push({ text, done:false }); save('goals2', goals2); }
+  const arr = goalArr(listNum);
+  arr.push({ text, done: false, createdAt: new Date().toISOString(), completedAt: null });
+  goalSave(listNum);
   inp.value = ''; renderGoals();
 }
 function toggleGoal(listNum, i) {
-  if(listNum===1) { goals1[i].done = !goals1[i].done; save('goals1', goals1); }
-  else            { goals2[i].done = !goals2[i].done; save('goals2', goals2); }
+  const arr = goalArr(listNum);
+  arr[i].done = !arr[i].done;
+  arr[i].completedAt = arr[i].done ? new Date().toISOString() : null;
+  goalSave(listNum);
   renderGoals();
 }
 function removeGoal(listNum, i) {
-  if(listNum===1) { goals1.splice(i,1); save('goals1', goals1); }
-  else            { goals2.splice(i,1); save('goals2', goals2); }
+  goalArr(listNum).splice(i,1);
+  goalSave(listNum);
   renderGoals();
 }
 
