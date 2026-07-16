@@ -414,6 +414,7 @@ body {
     <div class="nav-item" onclick="switchView('habits',this)"><span class="nav-icon">✅</span> Hábitos</div>
     <div class="nav-item" onclick="switchView('todo',this)"><span class="nav-icon">📋</span> Tareas</div>
     <div class="nav-item" onclick="switchView('goals',this)"><span class="nav-icon">🎯</span> Metas</div>
+    <div class="nav-item" onclick="switchView('notes',this)"><span class="nav-icon">📝</span> Notas</div>
 
     <div class="nav-section">Herramientas</div>
     <div class="nav-item" onclick="switchView('focus',this)"><span class="nav-icon">⏱️</span> Focus</div>
@@ -614,6 +615,23 @@ body {
       </div>
     </div>
 
+    <!-- ═══ NOTAS ═══ -->
+    <div id="view-notes" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📝 Notas</div>
+          <div class="page-sub">Anotá ideas sueltas, no ligadas a un día del calendario</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✍️ Nueva nota</div>
+        <input type="text" class="input-dark" id="noteTitleInput" placeholder="Título (opcional)" style="width:100%;margin-bottom:8px;">
+        <textarea class="input-dark" id="noteTextInput" placeholder="Escribí tu nota..." style="width:100%;min-height:70px;resize:vertical;"></textarea>
+        <button class="btn-sm" onclick="addNote()" style="margin-top:8px;">+ Agregar nota</button>
+      </div>
+      <div class="section-gap" id="notesList" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
     <!-- ═══ FOCUS ═══ -->
     <div id="view-focus" class="view">
       <div class="page-header">
@@ -782,6 +800,7 @@ let morningR     = load('morningR', ['Skin care','Hacer la cama','Agua con limó
 let nightR       = load('nightR', ['Baño caliente','Herbal tea','Journal','Planificar el día siguiente','Leer 10 páginas']);
 let mood         = load('mood', 0);
 let calNotes     = load('calNotes', {});
+let freeNotes    = load('freeNotes', []);
 let pomoSessions = load('pomoSessions', 0);
 
 let pomoWork = 25, pomoBreak = 5, pomoTotal = 25*60;
@@ -941,6 +960,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderGoals();
   renderRoutines();
   renderCalendar();
+  renderNotes();
   updateKPIs();
   updateStreak();
   renderPomoDots();
@@ -1174,6 +1194,48 @@ function removeRoutineItem(type, i) {
   if(type==='morning') { morningR.splice(i,1); save('morningR', morningR); }
   else                 { nightR.splice(i,1); save('nightR', nightR); }
   renderGoals(); renderRoutines();
+}
+
+// ══ NOTAS (texto libre, no ligadas al calendario) ══
+function renderNotes() {
+  const el = document.getElementById('notesList');
+  if (!el) return;
+  if (freeNotes.length === 0) {
+    el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:12px;">Todavía no tenés notas. Agregá la primera arriba.</div>`;
+    return;
+  }
+  el.innerHTML = freeNotes.slice().reverse().map(n => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          ${n.title ? `<div class="card-title">${escapeHtml(n.title)}</div>` : ''}
+          <div style="white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.6;">${escapeHtml(n.text)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;">${escapeHtml(n.date)}</div>
+        </div>
+        <button class="btn-sm danger" onclick="removeNote(${n.id})">✕</button>
+      </div>
+    </div>`).join('');
+}
+function addNote() {
+  const titleInp = document.getElementById('noteTitleInput');
+  const textInp = document.getElementById('noteTextInput');
+  const title = titleInp.value.trim();
+  const text = textInp.value.trim();
+  if (!text) return;
+  freeNotes.push({
+    id: Date.now(),
+    title: title || null,
+    text,
+    date: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
+  });
+  save('freeNotes', freeNotes);
+  titleInp.value = ''; textInp.value = '';
+  renderNotes();
+}
+function removeNote(id) {
+  freeNotes = freeNotes.filter(n => n.id !== id);
+  save('freeNotes', freeNotes);
+  renderNotes();
 }
 
 // ══ MOOD ══
