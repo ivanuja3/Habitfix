@@ -299,13 +299,38 @@ body {
 .todo-day-header.sat { color: #FF9FD0; border-left: 3px solid #FF9FD0; }
 .todo-day-header.sun { color: #FFA07F; border-left: 3px solid #FFA07F; }
 .todo-items { padding: 8px; min-height: 60px; }
-.todo-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 11px; color: var(--muted2); cursor: pointer; }
+.todo-item { display: flex; flex-direction: column; gap: 4px; padding: 5px 0; font-size: 11px; color: var(--muted2); border-bottom: 1px solid var(--border); }
+.todo-item:last-child { border-bottom: none; }
+.todo-item-row { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .todo-item input[type="checkbox"] { accent-color: var(--green); cursor: pointer; }
 .todo-item span.done-text { text-decoration: line-through; color: var(--muted); }
+.todo-item-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding-left: 20px; }
 .todo-add { display: flex; gap: 4px; padding: 6px; border-top: 1px solid var(--border); }
 .todo-input { flex: 1; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--text); outline: none; }
 .todo-input::placeholder { color: var(--muted); }
 .todo-add-btn { background: none; border: none; color: var(--green); font-size: 16px; cursor: pointer; line-height: 1; padding: 0 2px; }
+
+/* ── FILTROS (categoría / prioridad / estado) ── */
+.filters-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.mini-select {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px;
+  padding: 4px 8px; font-family: 'DM Sans', sans-serif; font-size: 10px; color: var(--text);
+  outline: none; cursor: pointer; max-width: 130px;
+}
+.mini-select:focus { border-color: var(--green); }
+.status-pills { display: flex; gap: 4px; }
+.status-pill {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px;
+  padding: 4px 10px; font-size: 10px; font-weight: 600; color: var(--muted2); cursor: pointer; transition: all 0.15s;
+}
+.status-pill.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.overdue-chip {
+  font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 8px; color: var(--red);
+  border: 1px solid rgba(232,64,64,0.35); background: rgba(232,64,64,0.1); white-space: nowrap;
+}
+@media(max-width: 540px) {
+  .mini-select { max-width: 78px; font-size: 9px; padding: 3px 5px; }
+}
 
 /* ── GOALS ── */
 .goals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -568,6 +593,7 @@ body {
         </div>
         <button class="btn-sm ghost" onclick="clearDoneTodos()">Limpiar completadas</button>
       </div>
+      <div class="filters-bar" id="todoFiltersBar"></div>
       <div class="todo-day-grid" id="todoGrid"></div>
     </div>
 
@@ -627,9 +653,19 @@ body {
         <div class="card-title">✍️ Nueva nota</div>
         <input type="text" class="input-dark" id="noteTitleInput" placeholder="Título (opcional)" style="width:100%;margin-bottom:8px;">
         <textarea class="input-dark" id="noteTextInput" placeholder="Escribí tu nota..." style="width:100%;min-height:70px;resize:vertical;"></textarea>
-        <button class="btn-sm" onclick="addNote()" style="margin-top:8px;">+ Agregar nota</button>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <select class="mini-select" id="noteCategoryInput" onchange="handleNoteCategorySelectChange(this)"></select>
+          <select class="mini-select" id="notePriorityInput">
+            <option value="">Sin prioridad</option>
+            <option value="alta">🔴 Alta</option>
+            <option value="media">🟡 Media</option>
+            <option value="baja">🔵 Baja</option>
+          </select>
+        </div>
+        <button class="btn-sm" onclick="addNote()" style="margin-top:10px;">+ Agregar nota</button>
       </div>
-      <div class="section-gap" id="notesList" style="display:flex;flex-direction:column;gap:12px;"></div>
+      <div class="filters-bar section-gap" id="notesFiltersBar"></div>
+      <div id="notesList" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
 
     <!-- ═══ FOCUS ═══ -->
@@ -750,6 +786,35 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ══ CATEGORÍAS Y PRIORIDAD (compartido entre Tareas y Notas) ══
+let categories = load('categories', ['Personal','Trabajo','Salud']);
+const CATEGORY_PALETTE = ['#3DDB3D','#4A9EFF','#F5A623','#E84040','#B892FF','#4dd4ac','#ff9f5a','#ff8fab'];
+function categoryColor(name) {
+  if (!name) return '#666660';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return CATEGORY_PALETTE[Math.abs(hash) % CATEGORY_PALETTE.length];
+}
+function ensureCategory(name) {
+  if (name && !categories.includes(name)) { categories.push(name); save('categories', categories); }
+}
+function categoryOptionsHtml(selected) {
+  return `<option value="" ${!selected?'selected':''}>Sin categoría</option>` +
+    categories.map(c => `<option value="${escapeHtml(c)}" ${selected===c?'selected':''}>${escapeHtml(c)}</option>`).join('') +
+    `<option value="__new__">+ Nueva…</option>`;
+}
+function promptNewCategory(onDone) {
+  const name = (prompt('Nombre de la nueva categoría:') || '').trim();
+  if (name) { ensureCategory(name); onDone(name, false); } else { onDone(null, true); }
+}
+
+const PRIORITY_COLORS = { alta: '#E84040', media: '#F5A623', baja: '#4A9EFF' };
+const PRIORITY_LABELS = { alta: '🔴 Alta', media: '🟡 Media', baja: '🔵 Baja' };
+function priorityOptionsHtml(selected) {
+  return `<option value="" ${!selected?'selected':''}>Sin prioridad</option>` +
+    Object.keys(PRIORITY_LABELS).map(p => `<option value="${p}" ${selected===p?'selected':''}>${PRIORITY_LABELS[p]}</option>`).join('');
+}
+
 // ══ FECHAS REALES (la racha y la tabla se basan en el calendario, no en un array fijo) ══
 function dateKey(date) {
   const y = date.getFullYear();
@@ -771,6 +836,13 @@ function getWeek(offset) {
     const date = addDays(monday, i);
     return { label, date, key: dateKey(date) };
   });
+}
+function parseDateKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function daysBetweenKeys(fromKey, toKey) {
+  return Math.round((parseDateKey(toKey) - parseDateKey(fromKey)) / 86400000);
 }
 
 // Convierte hábitos guardados en el formato viejo (array fijo Lun..Dom) al nuevo (fecha real -> bool)
@@ -980,6 +1052,7 @@ function switchView(id, el) {
     document.getElementById('sidebarOverlay').classList.remove('visible');
   }
   if(id === 'habits') renderHabitLineChart();
+  if(id === 'notes') populateNoteCategorySelect();
 }
 function toggleSidebar() {
   const open = document.getElementById('sidebar').classList.toggle('open');
@@ -1068,8 +1141,48 @@ function removeHabit(id) {
 
 // ══ TODOS ══
 const dayClasses = { Lun:'mon', Mar:'tue', Mié:'wed', Jue:'thu', Vie:'fri', Sáb:'sat', Dom:'sun' };
+let todoFilter = { status: 'all', priority: 'all', category: 'all' };
+
+function setTodoFilter(field, val) { todoFilter[field] = val; renderTodos(); }
+function todoItemMatchesFilter(t) {
+  if (todoFilter.status === 'pending' && t.done) return false;
+  if (todoFilter.status === 'done' && !t.done) return false;
+  if (todoFilter.priority !== 'all') {
+    if (todoFilter.priority === 'none' ? t.priority : t.priority !== todoFilter.priority) return false;
+  }
+  if (todoFilter.category !== 'all') {
+    if (todoFilter.category === 'none' ? t.category : t.category !== todoFilter.category) return false;
+  }
+  return true;
+}
+function isTodoOverdue(t) {
+  return !t.done && !!t.dateAdded && daysBetweenKeys(t.dateAdded, todayDateKey()) > 3;
+}
+function renderTodoFiltersBar() {
+  const bar = document.getElementById('todoFiltersBar');
+  if (!bar) return;
+  bar.innerHTML = `
+    <div class="status-pills">
+      <button type="button" class="status-pill ${todoFilter.status==='all'?'active':''}" onclick="setTodoFilter('status','all')">Todas</button>
+      <button type="button" class="status-pill ${todoFilter.status==='pending'?'active':''}" onclick="setTodoFilter('status','pending')">Pendientes</button>
+      <button type="button" class="status-pill ${todoFilter.status==='done'?'active':''}" onclick="setTodoFilter('status','done')">Completadas</button>
+    </div>
+    <select class="mini-select" onchange="setTodoFilter('priority', this.value)">
+      <option value="all" ${todoFilter.priority==='all'?'selected':''}>Toda prioridad</option>
+      <option value="alta" ${todoFilter.priority==='alta'?'selected':''}>🔴 Alta</option>
+      <option value="media" ${todoFilter.priority==='media'?'selected':''}>🟡 Media</option>
+      <option value="baja" ${todoFilter.priority==='baja'?'selected':''}>🔵 Baja</option>
+      <option value="none" ${todoFilter.priority==='none'?'selected':''}>Sin prioridad</option>
+    </select>
+    <select class="mini-select" onchange="setTodoFilter('category', this.value)">
+      <option value="all" ${todoFilter.category==='all'?'selected':''}>Toda categoría</option>
+      ${categories.map(c => `<option value="${escapeHtml(c)}" ${todoFilter.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+      <option value="none" ${todoFilter.category==='none'?'selected':''}>Sin categoría</option>
+    </select>`;
+}
 
 function renderTodos() {
+  renderTodoFiltersBar();
   const grid = document.getElementById('todoGrid');
   grid.innerHTML = '';
   DAYS.forEach(day => {
@@ -1079,11 +1192,28 @@ function renderTodos() {
     card.innerHTML = `
       <div class="todo-day-header ${dayClasses[day]}">${day}</div>
       <div class="todo-items" id="todoItems-${day}">
-        ${items.map((t,i) => `
+        ${items.map((t,i) => {
+          if (!todoItemMatchesFilter(t)) return '';
+          const overdue = isTodoOverdue(t);
+          const catColor = categoryColor(t.category);
+          const prioColor = t.priority ? PRIORITY_COLORS[t.priority] : '#666660';
+          return `
           <div class="todo-item">
-            <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${day}',${i})">
-            <span class="${t.done?'done-text':''}">${escapeHtml(t.text)}</span>
-          </div>`).join('')}
+            <div class="todo-item-row">
+              <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${day}',${i})">
+              <span class="${t.done?'done-text':''}">${escapeHtml(t.text)}</span>
+            </div>
+            <div class="todo-item-meta">
+              <select class="mini-select" style="border-color:${catColor}55;color:${catColor};" onchange="setTodoCategory('${day}',${i},this.value)">
+                ${categoryOptionsHtml(t.category)}
+              </select>
+              <select class="mini-select" style="border-color:${prioColor}55;color:${prioColor};" onchange="setTodoPriority('${day}',${i},this.value)">
+                ${priorityOptionsHtml(t.priority)}
+              </select>
+              ${overdue ? `<span class="overdue-chip">⚠ ${daysBetweenKeys(t.dateAdded, todayDateKey())}d</span>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
       <div class="todo-add">
         <input type="text" class="todo-input" id="todoInp-${day}" placeholder="+ tarea" onkeydown="if(event.key==='Enter')addTodo('${day}')">
@@ -1098,12 +1228,32 @@ function addTodo(day) {
   const text = inp.value.trim();
   if(!text) return;
   if(!todos[day]) todos[day] = [];
-  todos[day].push({ text, done: false });
+  todos[day].push({ text, done: false, category: null, priority: null, dateAdded: todayDateKey(), dateDone: null });
   save('todos', todos);
   inp.value = '';
   renderTodos();
 }
-function toggleTodo(day, i) { todos[day][i].done = !todos[day][i].done; save('todos', todos); renderTodos(); }
+function toggleTodo(day, i) {
+  const t = todos[day][i];
+  t.done = !t.done;
+  t.dateDone = t.done ? todayDateKey() : null;
+  save('todos', todos); renderTodos();
+}
+function setTodoCategory(day, i, val) {
+  if (val === '__new__') {
+    promptNewCategory((name, cancelled) => {
+      if (!cancelled) { todos[day][i].category = name; save('todos', todos); }
+      renderTodos();
+    });
+    return;
+  }
+  todos[day][i].category = val || null;
+  save('todos', todos); renderTodos();
+}
+function setTodoPriority(day, i, val) {
+  todos[day][i].priority = val || null;
+  save('todos', todos); renderTodos();
+}
 function clearDoneTodos() {
   DAYS.forEach(d => { todos[d] = (todos[d]||[]).filter(t => !t.done); });
   save('todos', todos); renderTodos();
@@ -1197,28 +1347,85 @@ function removeRoutineItem(type, i) {
 }
 
 // ══ NOTAS (texto libre, no ligadas al calendario) ══
+let noteFilter = { category: 'all', priority: 'all' };
+function setNoteFilter(field, val) { noteFilter[field] = val; renderNotes(); }
+function noteMatchesFilter(n) {
+  if (noteFilter.priority !== 'all') {
+    if (noteFilter.priority === 'none' ? n.priority : n.priority !== noteFilter.priority) return false;
+  }
+  if (noteFilter.category !== 'all') {
+    if (noteFilter.category === 'none' ? n.category : n.category !== noteFilter.category) return false;
+  }
+  return true;
+}
+function renderNoteFiltersBar() {
+  const bar = document.getElementById('notesFiltersBar');
+  if (!bar) return;
+  bar.innerHTML = `
+    <select class="mini-select" onchange="setNoteFilter('category', this.value)">
+      <option value="all" ${noteFilter.category==='all'?'selected':''}>Toda categoría</option>
+      ${categories.map(c => `<option value="${escapeHtml(c)}" ${noteFilter.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+      <option value="none" ${noteFilter.category==='none'?'selected':''}>Sin categoría</option>
+    </select>
+    <select class="mini-select" onchange="setNoteFilter('priority', this.value)">
+      <option value="all" ${noteFilter.priority==='all'?'selected':''}>Toda prioridad</option>
+      <option value="alta" ${noteFilter.priority==='alta'?'selected':''}>🔴 Alta</option>
+      <option value="media" ${noteFilter.priority==='media'?'selected':''}>🟡 Media</option>
+      <option value="baja" ${noteFilter.priority==='baja'?'selected':''}>🔵 Baja</option>
+      <option value="none" ${noteFilter.priority==='none'?'selected':''}>Sin prioridad</option>
+    </select>`;
+}
+function populateNoteCategorySelect() {
+  const sel = document.getElementById('noteCategoryInput');
+  if (sel) sel.innerHTML = categoryOptionsHtml('');
+}
+function handleNoteCategorySelectChange(sel) {
+  if (sel.value === '__new__') {
+    promptNewCategory((name, cancelled) => {
+      populateNoteCategorySelect();
+      if (!cancelled) sel.value = name;
+    });
+  }
+}
 function renderNotes() {
+  populateNoteCategorySelect();
+  renderNoteFiltersBar();
   const el = document.getElementById('notesList');
   if (!el) return;
-  if (freeNotes.length === 0) {
-    el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:12px;">Todavía no tenés notas. Agregá la primera arriba.</div>`;
+  const visible = freeNotes.slice().reverse().filter(noteMatchesFilter);
+  if (visible.length === 0) {
+    el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:12px;">${freeNotes.length===0 ? 'Todavía no tenés notas. Agregá la primera arriba.' : 'Ninguna nota coincide con el filtro.'}</div>`;
     return;
   }
-  el.innerHTML = freeNotes.slice().reverse().map(n => `
+  el.innerHTML = visible.map(n => {
+    const catColor = categoryColor(n.category);
+    const prioColor = n.priority ? PRIORITY_COLORS[n.priority] : '#666660';
+    return `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div style="flex:1;min-width:0;">
           ${n.title ? `<div class="card-title">${escapeHtml(n.title)}</div>` : ''}
           <div style="white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.6;">${escapeHtml(n.text)}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:8px;">${escapeHtml(n.date)}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
+            <select class="mini-select" style="border-color:${catColor}55;color:${catColor};" onchange="setNoteCategory(${n.id},this.value)">
+              ${categoryOptionsHtml(n.category)}
+            </select>
+            <select class="mini-select" style="border-color:${prioColor}55;color:${prioColor};" onchange="setNotePriority(${n.id},this.value)">
+              ${priorityOptionsHtml(n.priority)}
+            </select>
+            <span style="font-size:10px;color:var(--muted);">${escapeHtml(n.date)}</span>
+          </div>
         </div>
         <button class="btn-sm danger" onclick="removeNote(${n.id})">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function addNote() {
   const titleInp = document.getElementById('noteTitleInput');
   const textInp = document.getElementById('noteTextInput');
+  const catInp = document.getElementById('noteCategoryInput');
+  const prioInp = document.getElementById('notePriorityInput');
   const title = titleInp.value.trim();
   const text = textInp.value.trim();
   if (!text) return;
@@ -1226,11 +1433,32 @@ function addNote() {
     id: Date.now(),
     title: title || null,
     text,
+    category: catInp.value || null,
+    priority: prioInp.value || null,
     date: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
   });
   save('freeNotes', freeNotes);
-  titleInp.value = ''; textInp.value = '';
+  titleInp.value = ''; textInp.value = ''; catInp.value = ''; prioInp.value = '';
   renderNotes();
+}
+function setNoteCategory(id, val) {
+  const n = freeNotes.find(x => x.id === id);
+  if (!n) return;
+  if (val === '__new__') {
+    promptNewCategory((name, cancelled) => {
+      if (!cancelled) { n.category = name; save('freeNotes', freeNotes); }
+      renderNotes();
+    });
+    return;
+  }
+  n.category = val || null;
+  save('freeNotes', freeNotes); renderNotes();
+}
+function setNotePriority(id, val) {
+  const n = freeNotes.find(x => x.id === id);
+  if (!n) return;
+  n.priority = val || null;
+  save('freeNotes', freeNotes); renderNotes();
 }
 function removeNote(id) {
   freeNotes = freeNotes.filter(n => n.id !== id);
