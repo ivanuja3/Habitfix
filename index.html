@@ -472,18 +472,23 @@ body {
 <div id="authGate" class="auth-gate">
   <div class="auth-gate-card">
     <div class="auth-gate-logo">⚡ HabitFix</div>
-    <div id="authGateStep1" style="display:none;">
-      <p class="auth-gate-sub">Ingresá tu email para entrar. Te mandamos un link, sin contraseña.</p>
-      <input type="email" id="authEmailInput" class="input-dark" placeholder="tu@email.com" style="width:100%;margin-top:14px;" onkeydown="if(event.key==='Enter')requestMagicLink()">
-      <button class="btn-sm" style="width:100%;margin-top:10px;" onclick="requestMagicLink()">Enviar link mágico</button>
-      <div id="authGateMsg" class="auth-gate-msg"></div>
+    <p class="auth-gate-sub">Cargando…</p>
+  </div>
+</div>
+
+<div id="linkEmailModal" class="auth-gate hidden">
+  <div class="auth-gate-card">
+    <div class="auth-gate-logo">☁️ Vincular email</div>
+    <div id="linkEmailStep1">
+      <p class="auth-gate-sub">Guardá tu cuenta con un email para poder entrar desde otro dispositivo sin perder tus datos.</p>
+      <input type="email" id="linkEmailInput" class="input-dark" placeholder="tu@email.com" style="width:100%;margin-top:14px;" onkeydown="if(event.key==='Enter')submitLinkEmail()">
+      <button class="btn-sm" style="width:100%;margin-top:10px;" onclick="submitLinkEmail()">Vincular email</button>
+      <button class="btn-sm ghost" style="width:100%;margin-top:8px;" onclick="closeLinkEmailModal()">Cancelar</button>
+      <div id="linkEmailMsg" class="auth-gate-msg"></div>
     </div>
-    <div id="authGateStep2" style="display:none;">
-      <p class="auth-gate-sub">📩 Revisá tu email y tocá el link para entrar.</p>
-      <button class="btn-sm ghost" style="width:100%;margin-top:10px;" onclick="resetAuthGate()">Usar otro email</button>
-    </div>
-    <div id="authGateLoading">
-      <p class="auth-gate-sub">Cargando…</p>
+    <div id="linkEmailStep2" style="display:none;">
+      <p class="auth-gate-sub">📩 Te mandamos un email de confirmación. Tocá el link para terminar de vincular tu cuenta.</p>
+      <button class="btn-sm ghost" style="width:100%;margin-top:10px;" onclick="closeLinkEmailModal()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -525,7 +530,7 @@ body {
     <div class="sidebar-bottom">
       <div class="date-display" id="sidebarDate"></div>
       <div class="streak-pill">🔥 <span id="streakCount">0</span> días seguidos</div>
-      <div style="margin-top:10px;font-size:10px;color:var(--muted);cursor:pointer;" onclick="logout()">Cerrar sesión</div>
+      <div id="accountAction" style="margin-top:10px;font-size:10px;color:var(--muted);cursor:pointer;"></div>
     </div>
   </aside>
 
@@ -914,54 +919,60 @@ function reloadAllStateFromLocalStorage() {
   loadBoardState();
 }
 
-// ══ AUTH GATE ══
-function showAuthStep(step) {
-  document.getElementById('authGateStep1').style.display = step === 1 ? 'block' : 'none';
-  document.getElementById('authGateStep2').style.display = step === 2 ? 'block' : 'none';
-  document.getElementById('authGateLoading').style.display = step === 3 ? 'block' : 'none';
-}
-function setAuthMsg(text, type) {
-  const el = document.getElementById('authGateMsg');
-  if (!el) return;
-  el.textContent = text;
-  el.className = 'auth-gate-msg' + (type ? ' ' + type : '');
-}
-function showAuthGate() {
-  document.getElementById('authGate').classList.remove('hidden');
-  showAuthStep(1);
-}
+// ══ AUTH (sesión anónima automática + vincular email opcional) ══
+let isAnonymousUser = true;
+
 function hideAuthGate() {
   document.getElementById('authGate').classList.add('hidden');
 }
-function resetAuthGate() {
-  showAuthStep(1);
-  setAuthMsg('', '');
-  document.getElementById('authEmailInput').value = '';
+function updateAccountUI() {
+  const el = document.getElementById('accountAction');
+  if (!el) return;
+  if (isAnonymousUser) {
+    el.textContent = '☁️ Vincular email (respaldo)';
+    el.onclick = openLinkEmailModal;
+  } else {
+    el.textContent = 'Cerrar sesión';
+    el.onclick = logout;
+  }
 }
-async function requestMagicLink() {
-  const email = document.getElementById('authEmailInput').value.trim();
-  if (!email) { setAuthMsg('Ingresá un email válido.', 'error'); return; }
-  setAuthMsg('Enviando...', '');
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.href.split('#')[0].split('?')[0] }
-  });
-  if (error) { setAuthMsg('Error: ' + error.message, 'error'); return; }
-  showAuthStep(2);
+function openLinkEmailModal() {
+  document.getElementById('linkEmailModal').classList.remove('hidden');
+  document.getElementById('linkEmailStep1').style.display = 'block';
+  document.getElementById('linkEmailStep2').style.display = 'none';
+  document.getElementById('linkEmailMsg').textContent = '';
+  document.getElementById('linkEmailInput').value = '';
+}
+function closeLinkEmailModal() {
+  document.getElementById('linkEmailModal').classList.add('hidden');
+}
+async function submitLinkEmail() {
+  const email = document.getElementById('linkEmailInput').value.trim();
+  const msgEl = document.getElementById('linkEmailMsg');
+  if (!email) { msgEl.textContent = 'Ingresá un email válido.'; msgEl.className = 'auth-gate-msg error'; return; }
+  msgEl.textContent = 'Enviando...'; msgEl.className = 'auth-gate-msg';
+  const { error } = await sb.auth.updateUser(
+    { email },
+    { emailRedirectTo: window.location.href.split('#')[0].split('?')[0] }
+  );
+  if (error) { msgEl.textContent = 'Error: ' + error.message; msgEl.className = 'auth-gate-msg error'; return; }
+  document.getElementById('linkEmailStep1').style.display = 'none';
+  document.getElementById('linkEmailStep2').style.display = 'block';
 }
 async function logout() {
   await sb.auth.signOut();
   SYNCED_KEYS.forEach(k => localStorage.removeItem('hf_'+k));
   location.reload();
 }
-async function onLoggedIn(userId) {
+async function onLoggedIn(userId, isAnon) {
   currentUserId = userId;
-  document.getElementById('authGate').classList.remove('hidden');
-  showAuthStep(3);
+  isAnonymousUser = isAnon;
   const { data, error } = await sb.from('hf_user_data').select('key,value').eq('user_id', userId);
   if (error) {
-    setAuthMsg('No se pudo cargar tu info: ' + error.message, 'error');
-    showAuthStep(1);
+    console.error('No se pudo cargar la info de la nube', error);
+    hideAuthGate();
+    startApp();
+    updateAccountUI();
     return;
   }
   if (data.length === 0) {
@@ -979,21 +990,32 @@ async function onLoggedIn(userId) {
   }
   hideAuthGate();
   startApp();
+  updateAccountUI();
 }
 async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
-    await onLoggedIn(session.user.id);
+    await onLoggedIn(session.user.id, session.user.is_anonymous);
   } else {
-    showAuthGate();
+    const { data, error } = await sb.auth.signInAnonymously();
+    if (error || !data.user) {
+      // Si por algún motivo falla la sesión anónima, no bloqueamos al usuario: sigue en modo solo local.
+      console.error('No se pudo crear sesión anónima', error);
+      hideAuthGate();
+      startApp();
+      return;
+    }
+    await onLoggedIn(data.user.id, true);
   }
   sb.auth.onAuthStateChange((event, newSession) => {
-    if (event === 'SIGNED_IN' && newSession && newSession.user.id !== currentUserId) {
-      onLoggedIn(newSession.user.id);
+    if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && newSession) {
+      isAnonymousUser = newSession.user.is_anonymous;
+      updateAccountUI();
+      if (newSession.user.id !== currentUserId) onLoggedIn(newSession.user.id, newSession.user.is_anonymous);
     }
     if (event === 'SIGNED_OUT') {
       currentUserId = null;
-      showAuthGate();
+      initAuth();
     }
   });
 }
