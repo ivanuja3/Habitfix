@@ -409,6 +409,45 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .view.active { animation: fadeIn 0.25s ease; }
+
+/* ── PIZARRA (estilo Miro) ── */
+.board-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.board-hint { font-size: 11px; color: var(--green); font-weight: 600; }
+.board-zoom-label { font-size: 11px; color: var(--muted2); font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: 8px; user-select: none; }
+.board-zoom-label:hover { background: var(--surface2); color: var(--text); }
+.board-canvas {
+  position: relative; width: 100%; height: 560px; overflow: auto;
+  border: 1px dashed var(--border2); border-radius: var(--radius);
+  background-color: var(--black);
+  background-image: radial-gradient(var(--border2) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.board-canvas.arrow-mode { cursor: crosshair; }
+#view-board:fullscreen { background: var(--black); padding: 20px; overflow: auto; }
+#view-board:fullscreen .board-canvas { height: calc(100vh - 150px); }
+.board-inner { position: relative; width: 2400px; height: 1600px; transform-origin: 0 0; }
+.board-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.board-arrow-line { pointer-events: stroke; cursor: pointer; }
+.board-arrow-line:hover { stroke: var(--red) !important; }
+.board-note {
+  position: absolute; width: 190px; min-height: 110px; border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4); display: flex; flex-direction: column;
+}
+.board-canvas.arrow-mode .board-note { cursor: crosshair; }
+.board-canvas.arrow-mode .board-note:hover { outline: 2px solid var(--green); outline-offset: 2px; }
+.board-canvas.arrow-mode .board-note-text { pointer-events: none; }
+.board-note-handle {
+  display: flex; align-items: center; justify-content: space-between; padding: 4px 6px;
+  cursor: grab; font-size: 11px; letter-spacing: 0.1em; color: rgba(0,0,0,0.35); user-select: none;
+}
+.board-note-handle:active { cursor: grabbing; }
+.board-note-del { background: none; border: none; color: rgba(0,0,0,0.4); cursor: pointer; font-size: 14px; padding: 0 4px; border-radius: 4px; }
+.board-note-del:hover { color: var(--red); background: rgba(255,255,255,0.5); }
+.board-note-text {
+  flex: 1; padding: 2px 10px 10px; font-size: 13px; line-height: 1.4; color: #1a1d23; outline: none;
+  word-break: break-word; white-space: pre-wrap; cursor: text;
+}
+.board-note-text:empty:before { content: 'Escribí algo…'; color: rgba(0,0,0,0.35); }
 </style>
 </head>
 <body>
@@ -445,6 +484,7 @@ body {
     <div class="nav-item" onclick="switchView('focus',this)"><span class="nav-icon">⏱️</span> Focus</div>
     <div class="nav-item" onclick="switchView('calendar',this)"><span class="nav-icon">📅</span> Calendario</div>
     <div class="nav-item" onclick="switchView('productivity',this)"><span class="nav-icon">📊</span> Productividad</div>
+    <div class="nav-item" onclick="switchView('board',this)"><span class="nav-icon">🧠</span> Pizarra</div>
 
     <div class="sidebar-bottom">
       <div class="date-display" id="sidebarDate"></div>
@@ -759,6 +799,28 @@ body {
       <div id="prodContent"></div>
     </div>
 
+    <!-- ═══ PIZARRA ═══ -->
+    <div id="view-board" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">🧠 Pizarra</div>
+          <div class="page-sub">Ideas sueltas, conectadas — estilo whiteboard</div>
+        </div>
+      </div>
+      <div class="board-toolbar">
+        <button class="btn-sm ghost" onclick="undoBoard()" title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
+        <button class="btn-sm" onclick="addBoardNote()">+ Nota</button>
+        <button class="btn-sm ghost" id="boardArrowModeBtn" onclick="toggleArrowMode()">↗ Flecha</button>
+        <button class="btn-sm ghost" onclick="toggleBoardFullscreen()">⛶ Pantalla completa</button>
+        <span class="board-zoom-label" id="boardZoomLabel" onclick="setBoardZoom(1)" title="Click para restablecer zoom · Rueda del mouse para acercar/alejar">100%</span>
+        <span class="board-hint" id="boardHint" style="display:none;">Click en el punto de inicio y después en el punto final. Volvé a tocar "Flecha" para salir.</span>
+        <button class="btn-sm danger" style="margin-left:auto;" onclick="clearBoard()">Vaciar pizarra</button>
+      </div>
+      <div class="board-canvas" id="boardCanvas">
+        <div class="board-inner" id="boardInner"></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1046,6 +1108,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderCalendar();
   renderNotes();
   renderProductivity();
+  renderBoard();
   updateKPIs();
   updateStreak();
   renderPomoDots();
@@ -1067,6 +1130,7 @@ function switchView(id, el) {
   if(id === 'habits') renderHabitLineChart();
   if(id === 'notes') populateNoteCategorySelect();
   if(id === 'productivity') renderProductivity();
+  if(id === 'board') renderBoard();
 }
 function toggleSidebar() {
   const open = document.getElementById('sidebar').classList.toggle('open');
@@ -1430,6 +1494,286 @@ function renderProductivity() {
     ${pd.avgCompletionDays !== null ? `<div class="page-sub section-gap">⏱ Promedio en cumplir una tarea: <strong style="color:var(--text)">${pd.avgCompletionDays} días</strong> · Completadas esta semana: <strong style="color:var(--text)">${pd.completedThisWeek}</strong></div>` : ''}
   `;
 }
+
+// ══ PIZARRA (estilo Miro) ══
+function uid() { return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+const BOARD_NOTE_COLORS = ['#fff3b0','#ffd6e8','#c7e9ff','#d4f7dc','#ffe0b3','#e0d4ff'];
+let boardItems = load('boardItems', []);
+let boardZoom = 1;
+let boardUndoStack = [];
+let arrowMode = false;
+let arrowStartPoint = null;
+let boardDragState = null;
+let boardDragMoved = false;
+
+function pushBoardUndo() {
+  boardUndoStack.push(JSON.stringify(boardItems));
+  if (boardUndoStack.length > 25) boardUndoStack.shift();
+}
+function undoBoard() {
+  if (!boardUndoStack.length) return;
+  boardItems = JSON.parse(boardUndoStack.pop());
+  save('boardItems', boardItems);
+  renderBoard();
+}
+function screenToBoardModel(clientX, clientY) {
+  const canvas = document.getElementById('boardCanvas');
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left + canvas.scrollLeft) / boardZoom,
+    y: (clientY - rect.top + canvas.scrollTop) / boardZoom
+  };
+}
+function setBoardZoom(zoom) {
+  boardZoom = Math.min(2.5, Math.max(0.3, zoom));
+  const inner = document.getElementById('boardInner');
+  if (inner) inner.style.transform = `scale(${boardZoom})`;
+  const label = document.getElementById('boardZoomLabel');
+  if (label) label.textContent = Math.round(boardZoom*100) + '%';
+  syncBoardArrows();
+}
+function addBoardNote() {
+  pushBoardUndo();
+  const notes = boardItems.filter(it => it.type === 'note');
+  const color = BOARD_NOTE_COLORS[notes.length % BOARD_NOTE_COLORS.length];
+  const x = 40 + (notes.length % 8) * 34;
+  const y = 40 + (notes.length % 8) * 34;
+  boardItems.push({ id: uid(), type: 'note', x, y, text: '', color });
+  save('boardItems', boardItems);
+  renderBoard();
+}
+function addBoardArrow(x1, y1, x2, y2, fromNoteId, toNoteId) {
+  pushBoardUndo();
+  boardItems.push({ id: uid(), type: 'arrow', x1, y1, x2, y2, fromNoteId: fromNoteId||null, toNoteId: toNoteId||null });
+  save('boardItems', boardItems);
+  renderBoard();
+}
+function deleteBoardElement(elId) {
+  const idx = boardItems.findIndex(it => it.id === elId);
+  if (idx === -1) return;
+  pushBoardUndo();
+  boardItems.splice(idx, 1);
+  boardItems = boardItems.filter(it => !(it.type === 'arrow' && (it.fromNoteId === elId || it.toNoteId === elId)));
+  save('boardItems', boardItems);
+  renderBoard();
+}
+function clearBoard() {
+  if (!confirm('¿Vaciar toda la pizarra? Podés deshacerlo con el botón ↶ Deshacer.')) return;
+  pushBoardUndo();
+  boardItems = [];
+  arrowMode = false;
+  save('boardItems', boardItems);
+  renderBoard();
+}
+function toggleArrowMode() {
+  arrowMode = !arrowMode;
+  arrowStartPoint = null;
+  renderBoard();
+}
+function toggleBoardFullscreen() {
+  const el = document.getElementById('view-board');
+  if (!document.fullscreenElement) el.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+/* Geometría de flechas atadas a notas */
+function getBoardNoteRect(noteId) {
+  const canvas = document.getElementById('boardCanvas');
+  const noteEl = canvas.querySelector(`[data-board-note="${noteId}"]`);
+  if (!noteEl) return null;
+  const canvasRect = canvas.getBoundingClientRect();
+  const noteRect = noteEl.getBoundingClientRect();
+  return {
+    left: (noteRect.left - canvasRect.left + canvas.scrollLeft) / boardZoom,
+    top: (noteRect.top - canvasRect.top + canvas.scrollTop) / boardZoom,
+    width: noteRect.width / boardZoom,
+    height: noteRect.height / boardZoom
+  };
+}
+function rectCenter(r) { return { x: r.left + r.width/2, y: r.top + r.height/2 }; }
+function rectBorderPoint(rect, towardX, towardY) {
+  const c = rectCenter(rect);
+  const dx = towardX - c.x, dy = towardY - c.y;
+  if (dx === 0 && dy === 0) return c;
+  const halfW = rect.width/2, halfH = rect.height/2;
+  const scaleX = dx !== 0 ? halfW/Math.abs(dx) : Infinity;
+  const scaleY = dy !== 0 ? halfH/Math.abs(dy) : Infinity;
+  const scale = Math.min(scaleX, scaleY);
+  return { x: c.x + dx*scale, y: c.y + dy*scale };
+}
+function computeArrowEndpoints(arrow) {
+  const fromRect = arrow.fromNoteId ? getBoardNoteRect(arrow.fromNoteId) : null;
+  const toRect = arrow.toNoteId ? getBoardNoteRect(arrow.toNoteId) : null;
+  const fromCenter = fromRect ? rectCenter(fromRect) : { x: arrow.x1, y: arrow.y1 };
+  const toCenter = toRect ? rectCenter(toRect) : { x: arrow.x2, y: arrow.y2 };
+  const p1 = fromRect ? rectBorderPoint(fromRect, toCenter.x, toCenter.y) : { x: arrow.x1, y: arrow.y1 };
+  const p2 = toRect ? rectBorderPoint(toRect, fromCenter.x, fromCenter.y) : { x: arrow.x2, y: arrow.y2 };
+  return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+}
+function syncBoardArrows() {
+  const canvas = document.getElementById('boardCanvas');
+  if (!canvas) return;
+  let changed = false;
+  boardItems.forEach(it => {
+    if (it.type !== 'arrow' || (!it.fromNoteId && !it.toNoteId)) return;
+    const pts = computeArrowEndpoints(it);
+    const lineEl = canvas.querySelector(`line[data-del-board-el="${it.id}"]`);
+    if (lineEl) { lineEl.setAttribute('x1',pts.x1); lineEl.setAttribute('y1',pts.y1); lineEl.setAttribute('x2',pts.x2); lineEl.setAttribute('y2',pts.y2); }
+    if (it.x1!==pts.x1 || it.y1!==pts.y1 || it.x2!==pts.x2 || it.y2!==pts.y2) changed = true;
+    it.x1=pts.x1; it.y1=pts.y1; it.x2=pts.x2; it.y2=pts.y2;
+  });
+  if (changed) save('boardItems', boardItems);
+}
+function updateArrowsForNoteLive(noteId) {
+  const canvas = document.getElementById('boardCanvas');
+  if (!canvas) return;
+  boardItems.forEach(it => {
+    if (it.type !== 'arrow') return;
+    if (it.fromNoteId !== noteId && it.toNoteId !== noteId) return;
+    const pts = computeArrowEndpoints(it);
+    const lineEl = canvas.querySelector(`line[data-del-board-el="${it.id}"]`);
+    if (lineEl) { lineEl.setAttribute('x1',pts.x1); lineEl.setAttribute('y1',pts.y1); lineEl.setAttribute('x2',pts.x2); lineEl.setAttribute('y2',pts.y2); }
+  });
+}
+function moveBoardNote(elId, x, y) {
+  const it = boardItems.find(i => i.id === elId);
+  if (it) { it.x = x; it.y = y; save('boardItems', boardItems); }
+}
+function editBoardText(elId, text) {
+  const it = boardItems.find(i => i.id === elId);
+  if (it) { it.text = text; save('boardItems', boardItems); }
+}
+
+function renderBoard() {
+  const canvas = document.getElementById('boardCanvas');
+  const inner = document.getElementById('boardInner');
+  if (!canvas || !inner) return;
+  canvas.classList.toggle('arrow-mode', arrowMode);
+  const hint = document.getElementById('boardHint');
+  if (hint) hint.style.display = arrowMode ? 'inline' : 'none';
+  const arrowBtn = document.getElementById('boardArrowModeBtn');
+  if (arrowBtn) arrowBtn.classList.toggle('active', arrowMode);
+
+  const notes = boardItems.filter(it => it.type === 'note');
+  const arrows = boardItems.filter(it => it.type === 'arrow');
+
+  const notesHtml = notes.map(n => `
+    <div class="board-note" data-board-note="${n.id}" style="left:${n.x}px;top:${n.y}px;background:${n.color||BOARD_NOTE_COLORS[0]};">
+      <div class="board-note-handle" data-board-drag-handle="1">⠿⠿<button class="board-note-del" data-del-board-el="${n.id}" title="Eliminar">×</button></div>
+      <div class="board-note-text" contenteditable="true" data-edit-board-text="${n.id}">${escapeHtml(n.text)}</div>
+    </div>`).join('');
+  const arrowsSvg = arrows.map(a => `
+      <line x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}" stroke="#7AEE7A" stroke-width="2.5"
+        marker-end="url(#board-arrowhead)" class="board-arrow-line" data-del-board-el="${a.id}"></line>`).join('');
+
+  inner.innerHTML = `
+    <svg class="board-svg" id="boardSvg">
+      <defs>
+        <marker id="board-arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L9,3 z" fill="#7AEE7A"></path>
+        </marker>
+      </defs>
+      ${arrowsSvg}
+    </svg>
+    ${notesHtml}`;
+}
+
+document.addEventListener('click', (e) => {
+  const delBoardEl = e.target.closest('[data-del-board-el]');
+  if (delBoardEl) { deleteBoardElement(delBoardEl.dataset.delBoardEl); return; }
+
+  const boardCanvasEl = e.target.closest('#boardCanvas');
+  if (boardCanvasEl && arrowMode && !boardDragMoved && !e.target.closest('.board-note-text')) {
+    const pt = screenToBoardModel(e.clientX, e.clientY);
+    const noteEl = e.target.closest('.board-note');
+    const noteId = noteEl ? noteEl.dataset.boardNote : null;
+    if (!arrowStartPoint) {
+      arrowStartPoint = { x: pt.x, y: pt.y, noteId };
+    } else {
+      addBoardArrow(arrowStartPoint.x, arrowStartPoint.y, pt.x, pt.y, arrowStartPoint.noteId, noteId);
+      arrowStartPoint = null;
+    }
+  }
+});
+document.addEventListener('mousedown', (e) => {
+  if (arrowMode) {
+    const canvasInArrowMode = e.target.closest('#boardCanvas');
+    if (canvasInArrowMode && !e.target.closest('[data-del-board-el]') && !e.target.closest('[data-board-drag-handle]') && !e.target.closest('.board-note-text')) {
+      e.preventDefault();
+    }
+  }
+  const handle = e.target.closest('[data-board-drag-handle]');
+  if (!handle || e.target.closest('[data-del-board-el]')) return;
+  const noteEl = handle.closest('.board-note');
+  const noteData = boardItems.find(i => i.id === noteEl.dataset.boardNote);
+  if (!noteData) return;
+  const start = screenToBoardModel(e.clientX, e.clientY);
+  pushBoardUndo();
+  boardDragState = { elId: noteEl.dataset.boardNote, offsetX: start.x - noteData.x, offsetY: start.y - noteData.y };
+  boardDragMoved = false;
+  e.preventDefault();
+});
+document.addEventListener('mousemove', (e) => {
+  if (!boardDragState) return;
+  boardDragMoved = true;
+  const pt = screenToBoardModel(e.clientX, e.clientY);
+  let x = Math.max(0, pt.x - boardDragState.offsetX);
+  let y = Math.max(0, pt.y - boardDragState.offsetY);
+  const noteEl = document.querySelector(`[data-board-note="${boardDragState.elId}"]`);
+  if (noteEl) { noteEl.style.left = x + 'px'; noteEl.style.top = y + 'px'; }
+  updateArrowsForNoteLive(boardDragState.elId);
+});
+document.addEventListener('mouseup', () => {
+  if (!boardDragState) return;
+  const noteEl = document.querySelector(`[data-board-note="${boardDragState.elId}"]`);
+  if (noteEl) moveBoardNote(boardDragState.elId, parseFloat(noteEl.style.left), parseFloat(noteEl.style.top));
+  syncBoardArrows();
+  boardDragState = null;
+  // boardDragMoved sigue en true durante el "click" que sigue a este mouseup (para no
+  // interpretarlo como un punto de flecha); se libera recién en el próximo tick.
+  setTimeout(() => { boardDragMoved = false; }, 0);
+});
+document.addEventListener('input', (e) => {
+  const boardText = e.target.closest('[data-edit-board-text]');
+  if (boardText) {
+    const noteEl = boardText.closest('.board-note');
+    updateArrowsForNoteLive(noteEl.dataset.boardNote);
+  }
+});
+document.addEventListener('focusin', (e) => {
+  const boardText = e.target.closest('[data-edit-board-text]');
+  if (boardText) pushBoardUndo();
+});
+document.addEventListener('focusout', (e) => {
+  const boardText = e.target.closest('[data-edit-board-text]');
+  if (boardText) editBoardText(boardText.dataset.editBoardText, boardText.textContent);
+});
+document.addEventListener('fullscreenchange', () => { syncBoardArrows(); });
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    const boardView = document.getElementById('view-board');
+    if (boardView && boardView.classList.contains('active')) {
+      e.preventDefault();
+      undoBoard();
+    }
+  }
+});
+document.addEventListener('wheel', (e) => {
+  const canvasEl = e.target.closest('#boardCanvas');
+  if (!canvasEl) return;
+  e.preventDefault();
+  const oldZoom = boardZoom;
+  const factor = e.deltaY < 0 ? 1.1 : 1/1.1;
+  const newZoom = Math.min(2.5, Math.max(0.3, oldZoom * factor));
+  const rect = canvasEl.getBoundingClientRect();
+  const viewportX = e.clientX - rect.left;
+  const viewportY = e.clientY - rect.top;
+  const modelX = (viewportX + canvasEl.scrollLeft) / oldZoom;
+  const modelY = (viewportY + canvasEl.scrollTop) / oldZoom;
+  setBoardZoom(newZoom);
+  canvasEl.scrollLeft = modelX*newZoom - viewportX;
+  canvasEl.scrollTop = modelY*newZoom - viewportY;
+}, { passive: false });
 
 // ══ GOALS ══
 function renderGoals() {
