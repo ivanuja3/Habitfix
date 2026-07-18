@@ -509,9 +509,13 @@ button, .nav-item, .btn-sm, .card, .kpi-mini, .habit-check, .routine-item, .mood
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* ── ACHIEVEMENT TOAST ── */
-.achievement-toast {
+.achievement-toast-container {
   position: fixed; top: 20px; right: 20px; z-index: 2000;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+  pointer-events: none;
+}
+.achievement-toast {
+  display: flex; align-items: center; gap: 12px; pointer-events: auto;
   background: var(--surface); border: 1px solid var(--green-border);
   border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow-glow);
   transform: translateX(120%); opacity: 0; transition: transform 0.4s var(--ease-spring), opacity 0.3s var(--ease);
@@ -521,7 +525,7 @@ button, .nav-item, .btn-sm, .card, .kpi-mini, .habit-check, .routine-item, .mood
 .achievement-toast-icon { font-size: 28px; }
 .achievement-toast-title { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.5px; }
 .achievement-toast-desc { font-size: 13px; color: var(--white); font-weight: 600; margin-top: 2px; }
-@media(max-width: 600px) { .achievement-toast { left: 12px; right: 12px; max-width: unset; } }
+@media(max-width: 600px) { .achievement-toast-container { left: 12px; right: 12px; align-items: stretch; } .achievement-toast { max-width: unset; } }
 
 /* ── ACHIEVEMENTS GRID ── */
 .achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
@@ -1059,7 +1063,7 @@ const AMBIENT_URLS = {
 const SUPABASE_URL = 'https://qzkgbqvujmnjnawwoyhw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6a2dicXZ1am1uam5hd3dveWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMzMxNjUsImV4cCI6MjA5OTkwOTE2NX0.gcxyDXcnmvz641bLzvkxUQxuNktJPy3ZJmQ5ENignOg';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const SYNCED_KEYS = ['categories','habits','todos','goals1','goals2','morningR','nightR','mood','calNotes','freeNotes','pomoSessions','boardItems','morningDone','nightDone','accentColor','soundEnabled','unlockedAchievements'];
+const SYNCED_KEYS = ['categories','habits','todos','goals1','goals2','morningR','nightR','mood','calNotes','freeNotes','pomoSessions','boardItems','morningDone','nightDone','accentColor','soundEnabled','unlockedAchievements','tasksCompletedTotal'];
 let currentUserId = null;
 
 function load(key, def) {
@@ -1081,6 +1085,7 @@ function reloadAllStateFromLocalStorage() {
   loadBoardState();
   loadPreferencesState();
   loadAchievementsState();
+  loadTasksCompletedState();
 }
 
 // ══ PREFERENCIAS (tema + sonido) ══
@@ -1183,12 +1188,22 @@ function fireConfetti() {
   }
   tick();
 }
+function getAchievementToastContainer() {
+  let el = document.getElementById('achievementToastContainer');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'achievementToastContainer';
+    el.className = 'achievement-toast-container';
+    document.body.appendChild(el);
+  }
+  return el;
+}
 function showAchievementToast(ach) {
   const toast = document.createElement('div');
   toast.className = 'achievement-toast';
   toast.innerHTML = `<div class="achievement-toast-icon">${ach.icon}</div>
     <div><div class="achievement-toast-title">¡Logro desbloqueado!</div><div class="achievement-toast-desc">${escapeHtml(ach.title)}</div></div>`;
-  document.body.appendChild(toast);
+  getAchievementToastContainer().appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('show'));
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3500);
 }
@@ -1197,9 +1212,11 @@ function showAchievementToast(ach) {
 let unlockedAchievements;
 function loadAchievementsState() { unlockedAchievements = load('unlockedAchievements', []); }
 loadAchievementsState();
-function totalTasksDoneCount() {
-  return DAYS.reduce((sum, d) => sum + (todos[d] || []).filter(t => t.done).length, 0);
-}
+// Contador acumulado (no baja aunque se usen "Limpiar completadas" o se desmarque una tarea),
+// igual al patrón que ya usa pomoSessions — así el logro no pierde progreso silenciosamente.
+let tasksCompletedTotal;
+function loadTasksCompletedState() { tasksCompletedTotal = load('tasksCompletedTotal', 0); }
+loadTasksCompletedState();
 function weekPerfectCheck() {
   if (habits.length === 0) return false;
   const week = getWeek(0);
@@ -1213,8 +1230,8 @@ const ACHIEVEMENTS = [
   { id: 'streak_100', icon: '👑', title: 'Leyenda', desc: '100 días seguidos de racha', check: () => calculateStreak() >= 100 },
   { id: 'five_habits', icon: '🧩', title: 'Sistema completo', desc: 'Tenés 5 hábitos o más activos', check: () => habits.length >= 5 },
   { id: 'perfect_week', icon: '💎', title: 'Semana perfecta', desc: 'Cumpliste el 100% de tus hábitos en una semana', check: () => weekPerfectCheck() },
-  { id: 'tasks_10', icon: '📋', title: 'Productivo', desc: 'Completaste 10 tareas', check: () => totalTasksDoneCount() >= 10 },
-  { id: 'tasks_50', icon: '⚡', title: 'Máquina de hacer', desc: 'Completaste 50 tareas', check: () => totalTasksDoneCount() >= 50 },
+  { id: 'tasks_10', icon: '📋', title: 'Productivo', desc: 'Completaste 10 tareas', check: () => tasksCompletedTotal >= 10 },
+  { id: 'tasks_50', icon: '⚡', title: 'Máquina de hacer', desc: 'Completaste 50 tareas', check: () => tasksCompletedTotal >= 50 },
   { id: 'pomodoro_10', icon: '🍅', title: 'Enfocado', desc: 'Completaste 10 sesiones de Focus', check: () => pomoSessions >= 10 },
   { id: 'notes_5', icon: '📝', title: 'Pensador', desc: 'Escribiste 5 notas', check: () => freeNotes.length >= 5 },
   { id: 'board_note', icon: '🧠', title: 'Lluvia de ideas', desc: 'Agregaste tu primera nota a la Pizarra', check: () => boardItems.some(i => i.type === 'note') },
@@ -1289,7 +1306,8 @@ function exportData() {
   // pisados por save() no tendrían fila en localStorage y saldrían null.
   const dump = {
     categories, habits, todos, goals1, goals2, morningR, nightR, mood, calNotes, freeNotes,
-    pomoSessions, boardItems, morningDone, nightDone, accentColor, soundEnabled, unlockedAchievements
+    pomoSessions, boardItems, morningDone, nightDone, accentColor, soundEnabled, unlockedAchievements,
+    tasksCompletedTotal
   };
   const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1388,6 +1406,12 @@ async function initAuth() {
       console.error('No se pudo crear sesión anónima', error);
       hideAuthGate();
       startApp();
+      const accountEl = document.getElementById('accountAction');
+      if (accountEl) accountEl.textContent = '📴 Modo local (sin nube)';
+      const statusEl = document.getElementById('settingsAccountStatus');
+      const btnEl = document.getElementById('settingsAccountBtn');
+      if (statusEl) statusEl.textContent = 'No se pudo conectar con la nube. Tus datos quedan solo en este navegador.';
+      if (btnEl) btnEl.style.display = 'none';
       return;
     }
     await onLoggedIn(data.user.id, true);
@@ -1964,7 +1988,11 @@ function toggleTodo(day, i) {
   const t = todos[day][i];
   t.done = !t.done;
   t.dateDone = t.done ? todayDateKey() : null;
-  if (t.done) playPopSound();
+  if (t.done) {
+    playPopSound();
+    tasksCompletedTotal++;
+    save('tasksCompletedTotal', tasksCompletedTotal);
+  }
   save('todos', todos); renderTodos();
   checkAchievements();
 }
