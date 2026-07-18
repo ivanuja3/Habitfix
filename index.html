@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HabitFix — Controla tus hábitos</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root {
   --green: #3DDB3D;
@@ -448,9 +449,44 @@ body {
   word-break: break-word; white-space: pre-wrap; cursor: text;
 }
 .board-note-text:empty:before { content: 'Escribí algo…'; color: rgba(0,0,0,0.35); }
+
+/* ── AUTH GATE ── */
+.auth-gate {
+  position: fixed; inset: 0; background: var(--black); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.auth-gate.hidden { display: none; }
+.auth-gate-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 32px 28px; width: 100%; max-width: 360px; text-align: center;
+}
+.auth-gate-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; color: var(--white); margin-bottom: 8px; }
+.auth-gate-sub { font-size: 13px; color: var(--muted2); line-height: 1.5; }
+.auth-gate-msg { font-size: 12px; margin-top: 10px; min-height: 16px; }
+.auth-gate-msg.error { color: var(--red); }
+.auth-gate-msg.ok { color: var(--green); }
 </style>
 </head>
 <body>
+
+<div id="authGate" class="auth-gate">
+  <div class="auth-gate-card">
+    <div class="auth-gate-logo">⚡ HabitFix</div>
+    <div id="authGateStep1" style="display:none;">
+      <p class="auth-gate-sub">Ingresá tu email para entrar. Te mandamos un link, sin contraseña.</p>
+      <input type="email" id="authEmailInput" class="input-dark" placeholder="tu@email.com" style="width:100%;margin-top:14px;" onkeydown="if(event.key==='Enter')requestMagicLink()">
+      <button class="btn-sm" style="width:100%;margin-top:10px;" onclick="requestMagicLink()">Enviar link mágico</button>
+      <div id="authGateMsg" class="auth-gate-msg"></div>
+    </div>
+    <div id="authGateStep2" style="display:none;">
+      <p class="auth-gate-sub">📩 Revisá tu email y tocá el link para entrar.</p>
+      <button class="btn-sm ghost" style="width:100%;margin-top:10px;" onclick="resetAuthGate()">Usar otro email</button>
+    </div>
+    <div id="authGateLoading">
+      <p class="auth-gate-sub">Cargando…</p>
+    </div>
+  </div>
+</div>
 
 <div class="mobile-header">
   <button class="hamburger" onclick="toggleSidebar()">☰</button>
@@ -489,6 +525,7 @@ body {
     <div class="sidebar-bottom">
       <div class="date-display" id="sidebarDate"></div>
       <div class="streak-pill">🔥 <span id="streakCount">0</span> días seguidos</div>
+      <div style="margin-top:10px;font-size:10px;color:var(--muted);cursor:pointer;" onclick="logout()">Cerrar sesión</div>
     </div>
   </aside>
 
@@ -851,17 +888,124 @@ const AMBIENT_URLS = {
   space: 'https://www.youtube.com/watch?v=ZXtCFSLKx3Q',
 };
 
+// ══ SUPABASE (login + sync en la nube) ══
+const SUPABASE_URL = 'https://qzkgbqvujmnjnawwoyhw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6a2dicXZ1am1uam5hd3dveWh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzMzMxNjUsImV4cCI6MjA5OTkwOTE2NX0.gcxyDXcnmvz641bLzvkxUQxuNktJPy3ZJmQ5ENignOg';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SYNCED_KEYS = ['categories','habits','todos','goals1','goals2','morningR','nightR','mood','calNotes','freeNotes','pomoSessions','boardItems','morningDone','nightDone'];
+let currentUserId = null;
+
 function load(key, def) {
   try { const v = localStorage.getItem('hf_'+key); return v ? JSON.parse(v) : def; } catch { return def; }
 }
-function save(key, val) { try { localStorage.setItem('hf_'+key, JSON.stringify(val)); } catch {} }
+function save(key, val) {
+  try { localStorage.setItem('hf_'+key, JSON.stringify(val)); } catch {}
+  if (currentUserId && SYNCED_KEYS.includes(key)) {
+    sb.from('hf_user_data')
+      .upsert({ user_id: currentUserId, key, value: val, updated_at: new Date().toISOString() })
+      .then(({ error }) => { if (error) console.error('Error al sincronizar', key, error); });
+  }
+}
+// Re-lee todo el estado desde localStorage (se usa después de pisar la caché local con los datos de la nube)
+function reloadAllStateFromLocalStorage() {
+  loadCategoriesState();
+  loadHabitsTodosGoalsState();
+  loadRoutineDoneState();
+  loadBoardState();
+}
+
+// ══ AUTH GATE ══
+function showAuthStep(step) {
+  document.getElementById('authGateStep1').style.display = step === 1 ? 'block' : 'none';
+  document.getElementById('authGateStep2').style.display = step === 2 ? 'block' : 'none';
+  document.getElementById('authGateLoading').style.display = step === 3 ? 'block' : 'none';
+}
+function setAuthMsg(text, type) {
+  const el = document.getElementById('authGateMsg');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'auth-gate-msg' + (type ? ' ' + type : '');
+}
+function showAuthGate() {
+  document.getElementById('authGate').classList.remove('hidden');
+  showAuthStep(1);
+}
+function hideAuthGate() {
+  document.getElementById('authGate').classList.add('hidden');
+}
+function resetAuthGate() {
+  showAuthStep(1);
+  setAuthMsg('', '');
+  document.getElementById('authEmailInput').value = '';
+}
+async function requestMagicLink() {
+  const email = document.getElementById('authEmailInput').value.trim();
+  if (!email) { setAuthMsg('Ingresá un email válido.', 'error'); return; }
+  setAuthMsg('Enviando...', '');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href.split('#')[0].split('?')[0] }
+  });
+  if (error) { setAuthMsg('Error: ' + error.message, 'error'); return; }
+  showAuthStep(2);
+}
+async function logout() {
+  await sb.auth.signOut();
+  SYNCED_KEYS.forEach(k => localStorage.removeItem('hf_'+k));
+  location.reload();
+}
+async function onLoggedIn(userId) {
+  currentUserId = userId;
+  document.getElementById('authGate').classList.remove('hidden');
+  showAuthStep(3);
+  const { data, error } = await sb.from('hf_user_data').select('key,value').eq('user_id', userId);
+  if (error) {
+    setAuthMsg('No se pudo cargar tu info: ' + error.message, 'error');
+    showAuthStep(1);
+    return;
+  }
+  if (data.length === 0) {
+    // Cuenta nueva: subir lo que ya hubiera en este navegador (si había datos previos)
+    for (const key of SYNCED_KEYS) {
+      const localVal = load(key, undefined);
+      if (localVal !== undefined) {
+        await sb.from('hf_user_data').upsert({ user_id: userId, key, value: localVal, updated_at: new Date().toISOString() });
+      }
+    }
+  } else {
+    // Ya hay datos en la nube: son la fuente de verdad
+    data.forEach(row => { localStorage.setItem('hf_'+row.key, JSON.stringify(row.value)); });
+    reloadAllStateFromLocalStorage();
+  }
+  hideAuthGate();
+  startApp();
+}
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await onLoggedIn(session.user.id);
+  } else {
+    showAuthGate();
+  }
+  sb.auth.onAuthStateChange((event, newSession) => {
+    if (event === 'SIGNED_IN' && newSession && newSession.user.id !== currentUserId) {
+      onLoggedIn(newSession.user.id);
+    }
+    if (event === 'SIGNED_OUT') {
+      currentUserId = null;
+      showAuthGate();
+    }
+  });
+}
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // ══ CATEGORÍAS Y PRIORIDAD (compartido entre Tareas y Notas) ══
-let categories = load('categories', ['Personal','Trabajo','Salud']);
+let categories;
+function loadCategoriesState() { categories = load('categories', ['Personal','Trabajo','Salud']); }
+loadCategoriesState();
 const CATEGORY_PALETTE = ['#3DDB3D','#4A9EFF','#F5A623','#E84040','#B892FF','#4dd4ac','#ff9f5a','#ff8fab'];
 function categoryColor(name) {
   if (!name) return '#666660';
@@ -930,24 +1074,27 @@ function migrateHabit(h) {
   return { id: h.id, name: h.name, completed };
 }
 
-let habits = load('habits', [
-  { id: 1, name: '10.000 pasos', completed: {} },
-  { id: 2, name: 'Leer 20 min', completed: {} },
-  { id: 3, name: 'Tomar 2L de agua', completed: {} },
-  { id: 4, name: 'Meditar', completed: {} },
-  { id: 5, name: 'Hacer ejercicio', completed: {} },
-]).map(migrateHabit);
-let habitWeekOffset = 0;
+let habits, habitWeekOffset = 0, todos, goals1, goals2, morningR, nightR, mood, calNotes, freeNotes, pomoSessions;
 
-let todos        = load('todos', { Lun:[], Mar:[], Mié:[], Jue:[], Vie:[], Sáb:[], Dom:[] });
-let goals1       = load('goals1', ['Ahorrar este mes','Leer un libro completo','Hacer ejercicio 4 veces/semana']);
-let goals2       = load('goals2', ['Probar una clase nueva','Cocinar algo diferente']);
-let morningR     = load('morningR', ['Skin care','Hacer la cama','Agua con limón','Estiramientos 5 min','Journaling']);
-let nightR       = load('nightR', ['Baño caliente','Herbal tea','Journal','Planificar el día siguiente','Leer 10 páginas']);
-let mood         = load('mood', 0);
-let calNotes     = load('calNotes', {});
-let freeNotes    = load('freeNotes', []);
-let pomoSessions = load('pomoSessions', 0);
+function loadHabitsTodosGoalsState() {
+  habits = load('habits', [
+    { id: 1, name: '10.000 pasos', completed: {} },
+    { id: 2, name: 'Leer 20 min', completed: {} },
+    { id: 3, name: 'Tomar 2L de agua', completed: {} },
+    { id: 4, name: 'Meditar', completed: {} },
+    { id: 5, name: 'Hacer ejercicio', completed: {} },
+  ]).map(migrateHabit);
+  todos        = load('todos', { Lun:[], Mar:[], Mié:[], Jue:[], Vie:[], Sáb:[], Dom:[] });
+  goals1       = load('goals1', ['Ahorrar este mes','Leer un libro completo','Hacer ejercicio 4 veces/semana']);
+  goals2       = load('goals2', ['Probar una clase nueva','Cocinar algo diferente']);
+  morningR     = load('morningR', ['Skin care','Hacer la cama','Agua con limón','Estiramientos 5 min','Journaling']);
+  nightR       = load('nightR', ['Baño caliente','Herbal tea','Journal','Planificar el día siguiente','Leer 10 páginas']);
+  mood         = load('mood', 0);
+  calNotes     = load('calNotes', {});
+  freeNotes    = load('freeNotes', []);
+  pomoSessions = load('pomoSessions', 0);
+}
+loadHabitsTodosGoalsState();
 
 let pomoWork = 25, pomoBreak = 5, pomoTotal = 25*60;
 let pomoLeft = pomoWork * 60, pomoRunning = false, pomoInterval = null, pomoIsBreak = false;
@@ -1098,7 +1245,7 @@ function renderHabitLineChart() {
 }
 
 // ══ INIT ══
-window.addEventListener('DOMContentLoaded', () => {
+function startApp() {
   updateDateDisplays();
   renderQuote();
   renderHabits();
@@ -1115,6 +1262,9 @@ window.addEventListener('DOMContentLoaded', () => {
   restoreMood();
   const now = new Date();
   document.getElementById('goalsMonthLabel').textContent = MONTHS_ES[now.getMonth()] + ' ' + now.getFullYear();
+}
+window.addEventListener('DOMContentLoaded', () => {
+  initAuth();
 });
 
 // ══ NAV ══
@@ -1498,7 +1648,9 @@ function renderProductivity() {
 // ══ PIZARRA (estilo Miro) ══
 function uid() { return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 const BOARD_NOTE_COLORS = ['#fff3b0','#ffd6e8','#c7e9ff','#d4f7dc','#ffe0b3','#e0d4ff'];
-let boardItems = load('boardItems', []);
+let boardItems;
+function loadBoardState() { boardItems = load('boardItems', []); }
+loadBoardState();
 let boardZoom = 1;
 let boardUndoStack = [];
 let arrowMode = false;
@@ -1811,8 +1963,12 @@ function removeGoal(listNum, i) {
 }
 
 // ══ ROUTINES ══
-let morningDone = load('morningDone', []);
-let nightDone   = load('nightDone', []);
+let morningDone, nightDone;
+function loadRoutineDoneState() {
+  morningDone = load('morningDone', []);
+  nightDone   = load('nightDone', []);
+}
+loadRoutineDoneState();
 
 function renderRoutines() {
   renderRoutineList('morningRoutineList', morningR, morningDone, 'morning');
