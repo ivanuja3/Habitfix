@@ -444,6 +444,7 @@ body {
     <div class="nav-section">Herramientas</div>
     <div class="nav-item" onclick="switchView('focus',this)"><span class="nav-icon">⏱️</span> Focus</div>
     <div class="nav-item" onclick="switchView('calendar',this)"><span class="nav-icon">📅</span> Calendario</div>
+    <div class="nav-item" onclick="switchView('productivity',this)"><span class="nav-icon">📊</span> Productividad</div>
 
     <div class="sidebar-bottom">
       <div class="date-display" id="sidebarDate"></div>
@@ -747,6 +748,17 @@ body {
       </div>
     </div>
 
+    <!-- ═══ PRODUCTIVIDAD ═══ -->
+    <div id="view-productivity" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📊 Productividad</div>
+          <div class="page-sub">Cómo venís cumpliendo tus tareas en el tiempo</div>
+        </div>
+      </div>
+      <div id="prodContent"></div>
+    </div>
+
   </main>
 </div>
 
@@ -1033,6 +1045,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderRoutines();
   renderCalendar();
   renderNotes();
+  renderProductivity();
   updateKPIs();
   updateStreak();
   renderPomoDots();
@@ -1053,6 +1066,7 @@ function switchView(id, el) {
   }
   if(id === 'habits') renderHabitLineChart();
   if(id === 'notes') populateNoteCategorySelect();
+  if(id === 'productivity') renderProductivity();
 }
 function toggleSidebar() {
   const open = document.getElementById('sidebar').classList.toggle('open');
@@ -1257,6 +1271,164 @@ function setTodoPriority(day, i, val) {
 function clearDoneTodos() {
   DAYS.forEach(d => { todos[d] = (todos[d]||[]).filter(t => !t.done); });
   save('todos', todos); renderTodos();
+}
+
+// ══ PRODUCTIVIDAD (dashboard basado en Tareas) ══
+function computeProductivityData() {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = addDays(new Date(), -i);
+    days.push({ key: dateKey(d), label: `${d.getDate()}/${d.getMonth()+1}`, count: 0, isToday: i === 0 });
+  }
+  const dayIndex = new Map(days.map((d,i) => [d.key, i]));
+  const todayK = todayDateKey();
+
+  let totalTasks = 0, totalDone = 0, completedThisWeek = 0, totalCompletionDays = 0, completionDaysCount = 0, overdueN = 0;
+  const byCategory = {};
+  const perWeekday = DAYS.map(label => ({ label, done: 0, total: 0 }));
+
+  DAYS.forEach((day, di) => {
+    (todos[day] || []).forEach(t => {
+      totalTasks++;
+      perWeekday[di].total++;
+      if (t.done) {
+        totalDone++;
+        perWeekday[di].done++;
+        if (t.dateDone && dayIndex.has(t.dateDone)) days[dayIndex.get(t.dateDone)].count++;
+        if (t.dateAdded && t.dateDone) {
+          totalCompletionDays += daysBetweenKeys(t.dateAdded, t.dateDone);
+          completionDaysCount++;
+        }
+        if (t.dateDone && daysBetweenKeys(t.dateDone, todayK) <= 7) completedThisWeek++;
+      } else if (isTodoOverdue(t)) {
+        overdueN++;
+      }
+      const cat = t.category || 'Sin categoría';
+      if (!byCategory[cat]) byCategory[cat] = { done: 0, total: 0 };
+      byCategory[cat].total++;
+      if (t.done) byCategory[cat].done++;
+    });
+  });
+
+  perWeekday.forEach(w => { w.rate = w.total > 0 ? Math.round(w.done/w.total*100) : 0; });
+  const categoryBreakdown = Object.entries(byCategory).map(([name,v]) => ({
+    name, done: v.done, total: v.total,
+    sharePct: totalTasks > 0 ? Math.round(v.total/totalTasks*100) : 0
+  })).sort((a,b) => b.total - a.total);
+
+  let streak = 0, idx = days.length - 1;
+  while (idx >= 0 && days[idx].count === 0) idx--;
+  while (idx >= 0 && days[idx].count > 0) { streak++; idx--; }
+
+  const pending = totalTasks - totalDone;
+  const pendingOnTime = pending - overdueN;
+  const completionRate = totalTasks > 0 ? Math.round(totalDone/totalTasks*100) : 0;
+  const avgCompletionDays = completionDaysCount > 0 ? (totalCompletionDays/completionDaysCount).toFixed(1) : null;
+
+  return { days, totalTasks, totalDone, overdueN, pendingOnTime, completionRate, completedThisWeek, avgCompletionDays, categoryBreakdown, perWeekday, streak };
+}
+
+function renderProdDonut(doneN, pendingN, overdueN) {
+  const total = doneN + pendingN + overdueN;
+  const r = 46, cx = 60, cy = 60, circ = 2*Math.PI*r;
+  const segs = [
+    { val: doneN, color: '#3DDB3D' },
+    { val: pendingN, color: '#4A9EFF' },
+    { val: overdueN, color: '#E84040' },
+  ];
+  let off = 0;
+  const circles = segs.map(seg => {
+    const frac = total > 0 ? seg.val/total : 0;
+    const len = Math.max(frac*circ - (frac>0?2:0), 0);
+    const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="14" stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-off}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off += frac*circ;
+    return el;
+  }).join('');
+  const centerPct = total > 0 ? Math.round(doneN/total*100) : 0;
+  return `<svg width="120" height="120" viewBox="0 0 120 120">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#242424" stroke-width="14"/>
+    ${circles}
+    <text x="${cx}" y="${cy+7}" text-anchor="middle" font-size="20" font-weight="700" fill="#FFFFFF" font-family="'DM Mono', monospace">${centerPct}%</text>
+  </svg>`;
+}
+
+function renderProdChart(days) {
+  const max = Math.max(1, ...days.map(d => d.count));
+  const bars = days.map(d => `
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;" title="${d.label}: ${d.count} completada${d.count===1?'':'s'}">
+        <div style="width:100%;border-radius:3px 3px 0 0;background:${d.isToday?'var(--green)':'var(--surface3)'};height:${Math.max(Math.round((d.count/max)*100),4)}%;display:flex;align-items:flex-start;justify-content:center;font-size:9px;color:${d.isToday?'var(--black)':'var(--muted2)'};padding-top:2px;">${d.count>0?d.count:''}</div>
+      </div>`).join('');
+  const labels = days.map(d => `<div style="flex:1;text-align:center;font-size:8px;color:var(--muted);">${d.label}</div>`).join('');
+  return `<div style="display:flex;align-items:flex-end;gap:4px;height:90px;">${bars}</div>
+    <div style="display:flex;gap:4px;margin-top:4px;">${labels}</div>`;
+}
+
+function renderProdCategoryBreakdown(cats) {
+  if (!cats.length) return `<div style="color:var(--muted);font-size:12px;">Todavía no categorizaste ninguna tarea.</div>`;
+  const stack = cats.map(c => {
+    const color = categoryColor(c.name === 'Sin categoría' ? null : c.name);
+    return `<div style="width:${c.sharePct}%;background:${color};height:100%;" title="${escapeHtml(c.name)}: ${c.sharePct}%"></div>`;
+  }).join('');
+  const chips = cats.map(c => {
+    const color = categoryColor(c.name === 'Sin categoría' ? null : c.name);
+    return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted2);">
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
+      ${escapeHtml(c.name)} <span style="color:${color};font-weight:700;">${c.sharePct}%</span>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;height:10px;border-radius:6px;overflow:hidden;margin-bottom:12px;">${stack}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">${chips}</div>`;
+}
+
+function renderProdWeekdayBreakdown(perWeekday) {
+  return perWeekday.map(w => `
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
+      <div style="width:36px;font-size:11px;color:var(--muted2);font-weight:600;">${w.label}</div>
+      <div style="flex:1;height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;background:var(--green);width:${w.rate}%;"></div>
+      </div>
+      <div style="width:70px;text-align:right;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">${w.done}/${w.total} · ${w.rate}%</div>
+    </div>`).join('');
+}
+
+function renderProductivity() {
+  const el = document.getElementById('prodContent');
+  if (!el) return;
+  const pd = computeProductivityData();
+  el.innerHTML = `
+    <div class="grid-4">
+      <div class="kpi-mini"><div class="kpi-mini-label">🔥 Racha</div><div class="kpi-mini-val green">${pd.streak}</div><div class="kpi-mini-sub">días seguidos cumpliendo</div></div>
+      <div class="kpi-mini"><div class="kpi-mini-label">Cumplimiento</div><div class="kpi-mini-val green">${pd.completionRate}%</div><div class="kpi-mini-sub">general</div></div>
+      <div class="kpi-mini"><div class="kpi-mini-label">Completadas</div><div class="kpi-mini-val">${pd.totalDone}</div><div class="kpi-mini-sub">total histórico</div></div>
+      <div class="kpi-mini"><div class="kpi-mini-label">Atrasadas</div><div class="kpi-mini-val red">${pd.overdueN}</div><div class="kpi-mini-sub">⚠ más de 3 días</div></div>
+    </div>
+    <div class="card section-gap">
+      <div class="card-title">📈 Tareas completadas <span class="accent">últimos 14 días</span></div>
+      ${renderProdChart(pd.days)}
+    </div>
+    <div class="grid-2 section-gap">
+      <div class="card">
+        <div class="card-title">🎯 Estado general</div>
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          ${renderProdDonut(pd.totalDone, pd.pendingOnTime, pd.overdueN)}
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted2);">
+            <div><span style="width:8px;height:8px;border-radius:50%;background:#3DDB3D;display:inline-block;margin-right:6px;"></span>Completadas <strong style="color:var(--white)">${pd.totalDone}</strong></div>
+            <div><span style="width:8px;height:8px;border-radius:50%;background:#4A9EFF;display:inline-block;margin-right:6px;"></span>Pendientes al día <strong style="color:var(--white)">${pd.pendingOnTime}</strong></div>
+            <div><span style="width:8px;height:8px;border-radius:50%;background:#E84040;display:inline-block;margin-right:6px;"></span>Atrasadas <strong style="color:var(--white)">${pd.overdueN}</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏷️ Foco por categoría</div>
+        ${renderProdCategoryBreakdown(pd.categoryBreakdown)}
+      </div>
+    </div>
+    <div class="card section-gap">
+      <div class="card-title">📅 Cumplimiento por día de la semana</div>
+      ${renderProdWeekdayBreakdown(pd.perWeekday)}
+    </div>
+    ${pd.avgCompletionDays !== null ? `<div class="page-sub section-gap">⏱ Promedio en cumplir una tarea: <strong style="color:var(--text)">${pd.avgCompletionDays} días</strong> · Completadas esta semana: <strong style="color:var(--text)">${pd.completedThisWeek}</strong></div>` : ''}
+  `;
 }
 
 // ══ GOALS ══
